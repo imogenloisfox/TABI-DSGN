@@ -1,6 +1,7 @@
 "use client";
 
 import type { CustomiserState } from "@/lib/customiser/types";
+import { productUsesGemstone } from "@/lib/customiser/types";
 import { PRODUCTS } from "@/data/products";
 import { getGemstone } from "@/data/gemstones";
 import { buildCheckoutPayload } from "@/lib/shopify/buildCheckoutPayload";
@@ -12,7 +13,13 @@ interface ReviewPanelProps {
 export default function ReviewPanel({ state }: ReviewPanelProps) {
   const product = state.product ? PRODUCTS[state.product] : null;
   const gemstone = state.gemstone ? getGemstone(state.gemstone) : null;
-  const isComplete = state.product && state.engravingInitial && state.gemstone && state.finish;
+  const needsGem = productUsesGemstone(state.product);
+  const isComplete = Boolean(
+    state.product &&
+      state.finish &&
+      (!needsGem || state.gemstone) &&
+      state.engraving.text
+  );
 
   const handlePurchase = () => {
     const payload = buildCheckoutPayload(state);
@@ -32,14 +39,16 @@ export default function ReviewPanel({ state }: ReviewPanelProps) {
           <SummaryRow label="Piece" value={product?.label ?? "—"} />
           <SummaryRow
             label="Initial"
-            value={state.engravingInitial || "—"}
-            valueClassName={state.engravingInitial ? "font-script text-lg leading-none" : ""}
+            value={state.engraving.text || "—"}
+            valueClassName={state.engraving.text ? "font-script text-lg leading-none" : ""}
           />
-          <SummaryRow
-            label="Stone"
-            value={gemstone?.label ?? "—"}
-            swatch={gemstone?.hex}
-          />
+          {needsGem && (
+            <SummaryRow
+              label="Stone"
+              value={gemstone?.label ?? "—"}
+              swatch={gemstone?.hex}
+            />
+          )}
           <SummaryRow
             label="Finish"
             value={state.finish ? state.finish.charAt(0).toUpperCase() + state.finish.slice(1) : "—"}

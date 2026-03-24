@@ -1,3 +1,4 @@
+import * as THREE from "three";
 import type { FinishType, GemstoneId } from "@/lib/customiser/types";
 import { getGemstone } from "@/data/gemstones";
 
@@ -19,52 +20,90 @@ export interface StoneMaterialConfig {
   thickness: number;
 }
 
-export function getMetalMaterial(
-  finish: FinishType | null
-): MetalMaterialConfig {
-  if (finish === "matte") {
-    return {
-      color: "#c5c3c0",
-      metalness: 1.0,
-      roughness: 0.35,
-      envMapIntensity: 1.0,
-      clearcoat: 0,
-      clearcoatRoughness: 0,
-      reflectivity: 0.5,
-    };
-  }
+const METAL_SHINY: MetalMaterialConfig = {
+  color: "#d4d2ce",
+  metalness: 0.98,
+  roughness: 0.1,
+  envMapIntensity: 2.5,
+  clearcoat: 0.8,
+  clearcoatRoughness: 0.05,
+  reflectivity: 0.9,
+};
 
-  return {
-    color: "#d0cec9",
-    metalness: 1.0,
-    roughness: 0.08,
-    envMapIntensity: 1.5,
-    clearcoat: 0.8,
-    clearcoatRoughness: 0.05,
-    reflectivity: 0.9,
-  };
+const METAL_MATTE: MetalMaterialConfig = {
+  color: "#c8c6c2",
+  metalness: 1,
+  roughness: 0.25,
+  envMapIntensity: 2.5,
+  clearcoat: 1.0,
+  clearcoatRoughness: 0,
+  reflectivity: 0.5,
+};
+
+export function getMetalConfig(finish: FinishType | null): MetalMaterialConfig {
+  return finish === "matte" ? { ...METAL_MATTE } : { ...METAL_SHINY };
 }
 
-export function getStoneMaterial(
-  gemstoneId: GemstoneId | null
-): StoneMaterialConfig {
+export function createMetalMaterial(config: MetalMaterialConfig): THREE.MeshPhysicalMaterial {
+  return new THREE.MeshPhysicalMaterial({
+    color: config.color,
+    metalness: config.metalness,
+    roughness: config.roughness,
+    envMapIntensity: config.envMapIntensity,
+    clearcoat: config.clearcoat,
+    clearcoatRoughness: config.clearcoatRoughness,
+    reflectivity: config.reflectivity,
+    side: THREE.DoubleSide,
+  });
+}
+
+export function getStoneConfig(gemstoneId: GemstoneId | null): StoneMaterialConfig {
   const gem = gemstoneId ? getGemstone(gemstoneId) : null;
 
   if (!gem) {
     return {
-      color: "#ffffff",
-      transmission: 0.95,
-      ior: 1.5,
-      roughness: 0.0,
-      thickness: 0.5,
+      color: "#f5f8fb",
+      transmission: 1.0,
+      ior: 2.42,
+      roughness: 0.05,
+      thickness: 1.0,
     };
   }
 
   return {
     color: gem.hex,
-    transmission: 0.6,
-    ior: 1.77,
-    roughness: 0.05,
-    thickness: 0.8,
+    transmission: 1.0,
+    ior: 2.42,
+    roughness: 0.0,
+    thickness: 1.0,
   };
+}
+
+export function createStoneMaterial(config: StoneMaterialConfig): THREE.MeshPhysicalMaterial {
+  return new THREE.MeshPhysicalMaterial({
+    color: config.color,
+    transmission: config.transmission,
+    ior: config.ior,
+    roughness: config.roughness,
+    thickness: config.thickness,
+    // Hardcoded gem appearance — not managed by Leva
+    attenuationDistance: 0.5,
+    attenuationColor: config.color,
+    specularIntensity: 1.0,
+    specularColor: new THREE.Color("#ffffff"),
+    metalness: 0,
+    envMapIntensity: 3.0,
+    clearcoat: 1.0,
+    clearcoatRoughness: 0.0,
+    reflectivity: 1.0,
+    side: THREE.DoubleSide,
+    transparent: true,
+  });
+}
+
+const METAL_MATERIAL_NAMES = ["silver", "gold", "platinum", "metal", "setting", "prong", "bezel"];
+
+export function isMetalByMaterialName(materialName: string): boolean {
+  const lower = materialName.toLowerCase();
+  return METAL_MATERIAL_NAMES.some((kw) => lower.includes(kw));
 }

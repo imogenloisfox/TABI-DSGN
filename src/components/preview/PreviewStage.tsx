@@ -1,7 +1,8 @@
 "use client";
 
 import dynamic from "next/dynamic";
-import type { ProductType, FinishType } from "@/lib/customiser/types";
+import * as THREE from "three";
+import type { ProductVariant, FinishType, GemstoneId, GemPosition } from "@/lib/customiser/types";
 
 const SceneCanvas = dynamic(
   () => import("@/components/preview/scene/SceneCanvas"),
@@ -9,31 +10,48 @@ const SceneCanvas = dynamic(
 );
 
 interface PreviewStageProps {
-  product: ProductType | null;
-  engravingInitial: string;
-  finish: FinishType | null;
+  variant:            ProductVariant | null;
+  finish:             FinishType | null;
+  gemstone:           GemstoneId | null;
+  bumpMap:            THREE.CanvasTexture | null;
+  colorTintMap:       THREE.CanvasTexture | null;
+  bumpMapRight?:      THREE.CanvasTexture | null;
+  colorTintMapRight?: THREE.CanvasTexture | null;
+  gemPosition:        GemPosition;
+  gemPositionLeft:    GemPosition;
+  gemPositionRight:   GemPosition;
 }
 
 export default function PreviewStage({
-  product,
-  engravingInitial,
+  variant,
   finish,
+  gemstone,
+  bumpMap,
+  colorTintMap,
+  bumpMapRight,
+  colorTintMapRight,
+  gemPosition,
+  gemPositionLeft,
+  gemPositionRight,
 }: PreviewStageProps) {
   return (
     <div className="relative h-full w-full">
-      <SceneCanvas product={product} finish={finish} />
+      <SceneCanvas
+        variant={variant}
+        finish={finish}
+        gemstone={gemstone}
+        bumpMap={bumpMap}
+        colorTintMap={colorTintMap}
+        bumpMapRight={bumpMapRight}
+        colorTintMapRight={colorTintMapRight}
+        gemPosition={gemPosition}
+        gemPositionLeft={gemPositionLeft}
+        gemPositionRight={gemPositionRight}
+      />
 
-      {!product && (
+      {!variant && (
         <div className="pointer-events-none absolute inset-0 flex items-center justify-center">
           <span className="text-xs text-muted">Select a piece</span>
-        </div>
-      )}
-
-      {engravingInitial && (
-        <div className="pointer-events-none absolute bottom-4 left-0 right-0 text-center">
-          <span className="font-script text-lg text-foreground/80">
-            {engravingInitial}
-          </span>
         </div>
       )}
     </div>

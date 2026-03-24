@@ -8,13 +8,16 @@ export interface GemstoneOption {
 }
 
 export const GEMSTONES: GemstoneOption[] = [
-  { id: "white-cz", label: "White CZ", hex: "#e8e6e3", shopifyValue: "White CZ" },
-  { id: "garnet", label: "Garnet", hex: "#6e1423", shopifyValue: "Garnet" },
-  { id: "topaz", label: "Topaz", hex: "#4a7c9b", shopifyValue: "Topaz" },
-  { id: "citrine", label: "Citrine", hex: "#c9a227", shopifyValue: "Citrine" },
-  { id: "peridot", label: "Peridot", hex: "#6b8e23", shopifyValue: "Peridot" },
-  { id: "smoky-quartz", label: "Smoky Quartz", hex: "#5c4033", shopifyValue: "Smoky Quartz" },
-  { id: "green-quartz", label: "Green Quartz", hex: "#8fbc8f", shopifyValue: "Green Quartz" },
+  { id: "white-cz",         label: "White CZ",         hex: "#f5f8fb", shopifyValue: "White CZ" },
+  { id: "amethyst",         label: "Amethyst",         hex: "#b9a5d5", shopifyValue: "Amethyst" },
+  { id: "garnet",           label: "Garnet",           hex: "#7c051f", shopifyValue: "Garnet" },
+  { id: "topaz",            label: "Topaz",            hex: "#b1d7e5", shopifyValue: "Topaz" },
+  { id: "citrine",          label: "Citrine",          hex: "#fff7ae", shopifyValue: "Citrine" },
+  { id: "peridot",          label: "Peridot",          hex: "#dbeb63", shopifyValue: "Peridot" },
+  { id: "smoky-quartz",     label: "Smoky Quartz",     hex: "#724d2d", shopifyValue: "Smoky Quartz" },
+  { id: "green-quartz",     label: "Green Quartz",     hex: "#3b6938", shopifyValue: "Green Quartz" },
+  { id: "pink-tourmaline",  label: "Pink Tourmaline",  hex: "#d145a9", shopifyValue: "Pink Tourmaline" },
+  { id: "hessonite",        label: "Hessonite",        hex: "#b45715", shopifyValue: "Hessonite" },
 ];
 
 export function getGemstone(id: GemstoneId): GemstoneOption | undefined {

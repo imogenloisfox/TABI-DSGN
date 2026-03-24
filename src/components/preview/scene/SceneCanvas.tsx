@@ -1,40 +1,72 @@
 "use client";
 
-import { Suspense, useEffect, useMemo, useRef } from "react";
+import { Suspense, useEffect, useRef, type RefObject } from "react";
 import * as THREE from "three";
-import { Canvas, useThree } from "@react-three/fiber";
-import { OrbitControls, useGLTF, Center } from "@react-three/drei";
-import { EffectComposer, DepthOfField } from "@react-three/postprocessing";
+import { Canvas, useThree, useFrame } from "@react-three/fiber";
+import { OrbitControls } from "@react-three/drei";
 import { RoomEnvironment } from "three/addons/environments/RoomEnvironment.js";
 import { RGBELoader } from "three/addons/loaders/RGBELoader.js";
-import { FlakesTexture } from "three/addons/textures/FlakesTexture.js";
-import { useControls, button, folder } from "leva";
-import type { ProductType, FinishType } from "@/lib/customiser/types";
-
-const MODEL_PATHS: Record<ProductType, string> = {
-  ring: "/models/ring.glb",
-  pendant: "/models/pendant.glb",
-};
+import { useControls } from "leva";
+import type { ProductVariant, FinishType, GemstoneId, GemPosition } from "@/lib/customiser/types";
+import { CAMERA_CONFIG, ORBIT_CONSTRAINTS, ORBIT_DISTANCE } from "./sceneConfig";
+import ProductModel, { type OrbitControlsHandle } from "./ProductModel";
+import StudioLighting from "./StudioLighting";
 
 interface SceneCanvasProps {
-  product: ProductType | null;
-  finish: FinishType | null;
+  variant:            ProductVariant | null;
+  finish:             FinishType | null;
+  gemstone:           GemstoneId | null;
+  bumpMap:            THREE.CanvasTexture | null;
+  colorTintMap:       THREE.CanvasTexture | null;
+  bumpMapRight?:      THREE.CanvasTexture | null;
+  colorTintMapRight?: THREE.CanvasTexture | null;
+  gemPosition:        GemPosition;
+  gemPositionLeft:    GemPosition;
+  gemPositionRight:   GemPosition;
 }
 
-const flakesCanvas = new FlakesTexture();
-const flakesTexture = new THREE.CanvasTexture(flakesCanvas);
-flakesTexture.wrapS = flakesTexture.wrapT = THREE.RepeatWrapping;
-flakesTexture.repeat.set(80, 80);
+// ─── Cinematic camera transition on variant switch ────────────────────────────
+function CameraController({
+  variant,
+  orbitRef,
+}: {
+  variant: ProductVariant | null;
+  orbitRef: RefObject<OrbitControlsHandle | null>;
+}) {
+  const { camera }       = useThree();
+  const transitioningRef = useRef(false);
+  const targetPosRef     = useRef(new THREE.Vector3());
 
-function ensureUVs(geometry: THREE.BufferGeometry) {
-  if (geometry.attributes.uv) return;
-  const pos = geometry.attributes.position;
-  const uvs = new Float32Array(pos.count * 2);
-  for (let i = 0; i < pos.count; i++) {
-    uvs[i * 2] = pos.getX(i);
-    uvs[i * 2 + 1] = pos.getY(i);
-  }
-  geometry.setAttribute("uv", new THREE.BufferAttribute(uvs, 2));
+  useEffect(() => {
+    const ctrl = orbitRef.current;
+    if (!ctrl) return;
+
+    // Aim for the mid-orbit distance along the current view direction
+    const midDist = ORBIT_DISTANCE.min + 0.5 * (ORBIT_DISTANCE.max - ORBIT_DISTANCE.min);
+    const dir = camera.position.clone().sub(ctrl.target);
+    if (dir.lengthSq() < 1e-8) dir.set(0, 0, 1); else dir.normalize();
+    targetPosRef.current.copy(ctrl.target).addScaledVector(dir, midDist);
+
+    transitioningRef.current = true;
+    ctrl.enabled = false;
+  }, [variant, camera, orbitRef]);
+
+  useFrame(() => {
+    const ctrl = orbitRef.current;
+    if (!ctrl || !transitioningRef.current) return;
+
+    camera.position.lerp(targetPosRef.current, 0.08);
+    ctrl.update();
+
+    if (camera.position.distanceTo(targetPosRef.current) < 0.01) {
+      camera.position.copy(targetPosRef.current);
+      transitioningRef.current = false;
+      ctrl.enabled = true;
+      ctrl.update();
+    }
+  });
+
+  return null;
 }
 
 type EnvSource = "Room (procedural)" | "HDRI file";
@@ -43,40 +75,66 @@ function ConfigurableEnvironment() {
   const { gl, scene } = useThree();
   const envRef = useRef<THREE.Texture | null>(null);
 
-  const { source, hdriPath, exposure } = useControls("Environment", {
+  const {
+    source,
+    hdriPath,
+    exposure,
+    showBackground,
+    backgroundBlurriness,
+    backgroundIntensity,
+  } = useControls("Environment", {
     source: {
-      value: "Room (procedural)" as EnvSource,
+      value: "HDRI file" as EnvSource,
       options: ["Room (procedural)", "HDRI file"] as EnvSource[],
     },
-    hdriPath: { value: "/hdri/studio.hdr", label: "HDRI path" },
-    exposure: { value: 1.3, min: 0.2, max: 4.0, step: 0.05 },
+    hdriPath: { value: "/hdri/studio_small_09_1k.hdr", label: "HDRI path" },
+    exposure: { value: 1.4, min: 0.2, max: 4.0, step: 0.05 },
+    showBackground: { value: false, label: "Show background" },
+    backgroundBlurriness: { value: 0.6, min: 0, max: 1, step: 0.01, label: "BG blur" },
+    backgroundIntensity: { value: 0.7, min: 0, max: 2, step: 0.05, label: "BG intensity" },
   });
+
+  const rotationX = 2.45;
 
   useEffect(() => {
     gl.toneMappingExposure = exposure;
   }, [gl, exposure]);
 
   useEffect(() => {
+    scene.backgroundBlurriness = backgroundBlurriness;
+    scene.backgroundIntensity = backgroundIntensity;
+    scene.background = showBackground && envRef.current ? envRef.current : null;
+  }, [scene, showBackground, backgroundBlurriness, backgroundIntensity]);
+
+  useEffect(() => {
+    scene.environmentRotation.set(rotationX, 0, 0);
+    scene.backgroundRotation.set(rotationX, 0, 0);
+  }, [scene, rotationX]);
+
+  useEffect(() => {
     if (envRef.current) {
       envRef.current.dispose();
       envRef.current = null;
       scene.environment = null;
+      scene.background = null;
     }
+
+    const applyEnv = (tex: THREE.Texture) => {
+      scene.environment = tex;
+      scene.background = showBackground ? tex : null;
+      envRef.current = tex;
+    };
 
     if (source === "Room (procedural)") {
       const pmrem = new THREE.PMREMGenerator(gl);
-      const tex = pmrem.fromScene(new RoomEnvironment(), 0.04).texture;
-      scene.environment = tex;
-      envRef.current = tex;
+      applyEnv(pmrem.fromScene(new RoomEnvironment(), 0.04).texture);
       pmrem.dispose();
     } else {
       const pmrem = new THREE.PMREMGenerator(gl);
       new RGBELoader().load(
         hdriPath,
         (hdrTexture) => {
-          const envMap = pmrem.fromEquirectangular(hdrTexture).texture;
-          scene.environment = envMap;
-          envRef.current = envMap;
+          applyEnv(pmrem.fromEquirectangular(hdrTexture).texture);
           hdrTexture.dispose();
           pmrem.dispose();
         },
@@ -94,140 +152,50 @@ function ConfigurableEnvironment() {
       if (envRef.current) {
         envRef.current.dispose();
         scene.environment = null;
+        scene.background = null;
       }
     };
-  }, [gl, scene, source, hdriPath]);
+  }, [gl, scene, source, hdriPath, showBackground]);
 
   return null;
 }
 
-function ProductModel({
-  product,
-}: {
-  product: ProductType;
-}) {
-  const { scene } = useGLTF(MODEL_PATHS[product]);
 
-  const matControls = useControls("Material", {
-    color: { value: "#d0cec9" },
-    metalness: { value: 1.0, min: 0, max: 1, step: 0.01 },
-    roughness: { value: 0.08, min: 0, max: 1, step: 0.01 },
-    envMapIntensity: { value: 1.5, min: 0, max: 5, step: 0.05 },
-    clearcoat: { value: 0.8, min: 0, max: 1, step: 0.01 },
-    clearcoatRoughness: { value: 0.05, min: 0, max: 1, step: 0.01 },
-    reflectivity: { value: 0.9, min: 0, max: 1, step: 0.01 },
-    normalScale: { value: 0.08, min: 0, max: 0.5, step: 0.005 },
-  });
+export default function SceneCanvas({ variant, finish, gemstone, bumpMap, colorTintMap, bumpMapRight, colorTintMapRight, gemPosition, gemPositionLeft, gemPositionRight }: SceneCanvasProps) {
+  const orbitRef = useRef<OrbitControlsHandle>(null);
 
-  useControls("Export", {
-    "Copy settings to console": button(() => {
-      const output = {
-        material: {
-          color: matControls.color,
-          metalness: matControls.metalness,
-          roughness: matControls.roughness,
-          envMapIntensity: matControls.envMapIntensity,
-          clearcoat: matControls.clearcoat,
-          clearcoatRoughness: matControls.clearcoatRoughness,
-          reflectivity: matControls.reflectivity,
-          normalScale: matControls.normalScale,
-        },
-      };
-      console.log("=== MATERIAL SETTINGS ===");
-      console.log(JSON.stringify(output, null, 2));
-    }),
-  });
-
-  const clonedScene = useMemo(() => scene.clone(true), [scene]);
-
-  useEffect(() => {
-    clonedScene.traverse((child) => {
-      const asMesh = child as THREE.Mesh;
-      if (asMesh.isMesh) {
-        ensureUVs(asMesh.geometry);
-
-        const mat = new THREE.MeshPhysicalMaterial({
-          color: matControls.color,
-          metalness: matControls.metalness,
-          roughness: matControls.roughness,
-          envMapIntensity: matControls.envMapIntensity,
-          clearcoat: matControls.clearcoat,
-          clearcoatRoughness: matControls.clearcoatRoughness,
-          reflectivity: matControls.reflectivity,
-          normalMap: flakesTexture,
-          normalScale: new THREE.Vector2(
-            matControls.normalScale,
-            matControls.normalScale
-          ),
-          side: THREE.DoubleSide,
-        });
-        asMesh.material = mat;
-      }
-    });
-  }, [clonedScene, matControls]);
-
-  return (
-    <Center>
-      <primitive object={clonedScene} />
-    </Center>
-  );
-}
-
-function PostProcessing() {
-  const dof = useControls("Depth of Field", {
-    enabled: true,
-    focusDistance: { value: 0.02, min: 0, max: 0.1, step: 0.001 },
-    focalLength: { value: 0.06, min: 0, max: 0.3, step: 0.005 },
-    bokehScale: { value: 3, min: 0, max: 12, step: 0.5 },
-  });
-
-  if (!dof.enabled) return null;
-
-  return (
-    <EffectComposer>
-      <DepthOfField
-        focusDistance={dof.focusDistance}
-        focalLength={dof.focalLength}
-        bokehScale={dof.bokehScale}
-      />
-    </EffectComposer>
-  );
-}
-
-export default function SceneCanvas({ product }: SceneCanvasProps) {
   return (
     <Canvas
-      camera={{
-        fov: 35,
-        position: [0, 0.05, 0.5],
-        near: 0.001,
-        far: 50,
-      }}
+      camera={CAMERA_CONFIG}
       style={{ width: "100%", height: "100%" }}
       gl={{
         antialias: true,
         toneMapping: THREE.ACESFilmicToneMapping,
-        toneMappingExposure: 1.3,
+        toneMappingExposure: 1.4,
       }}
     >
+      <CameraController variant={variant} orbitRef={orbitRef} />
       <Suspense fallback={null}>
         <ConfigurableEnvironment />
-        {product && <ProductModel product={product} />}
+        <StudioLighting />
+        {variant && (
+          <ProductModel
+            variant={variant}
+            finish={finish}
+            gemstone={gemstone}
+            orbitControlsRef={orbitRef}
+            bumpMap={bumpMap}
+            colorTintMap={colorTintMap}
+            bumpMapRight={bumpMapRight}
+            colorTintMapRight={colorTintMapRight}
+            gemPosition={gemPosition}
+            gemPositionLeft={gemPositionLeft}
+            gemPositionRight={gemPositionRight}
+          />
+        )}
       </Suspense>
 
-      <OrbitControls
-        enableZoom
-        enablePan={false}
-        dampingFactor={0.08}
-        enableDamping
-        minDistance={0.1}
-        maxDistance={3}
-      />
-
-      <PostProcessing />
+      <OrbitControls ref={orbitRef} makeDefault {...ORBIT_CONSTRAINTS} />
     </Canvas>
   );
 }
-
-useGLTF.preload(MODEL_PATHS.ring);
-useGLTF.preload(MODEL_PATHS.pendant);

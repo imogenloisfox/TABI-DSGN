@@ -26,4 +26,20 @@ export const PRODUCTS: Record<ProductType, ProductOption> = {
     dimensions: { width: 15, height: 17, unit: "mm" },
     shopifyHandle: "tabi-engraving-pendant",
   },
+  ringConcave: {
+    id: "ringConcave",
+    label: "Ring Concave",
+    description: "Wide concave band, engraving only",
+    previewImage: "/images/ring/ring-plain.png",
+    dimensions: { width: 17, height: 17, unit: "mm" },
+    shopifyHandle: "tabi-engraving-ring-concave",
+  },
+  earrings: {
+    id: "earrings",
+    label: "Earrings",
+    description: "Pair of engraved earrings",
+    previewImage: "/images/ring/ring-plain.png",
+    dimensions: { width: 12, height: 12, unit: "mm" },
+    shopifyHandle: "tabi-engraving-earrings",
+  },
 };
