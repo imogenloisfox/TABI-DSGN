@@ -33,7 +33,7 @@ const METAL_SHINY: MetalMaterialConfig = {
 const METAL_MATTE: MetalMaterialConfig = {
   color: "#c8c6c2",
   metalness: 1,
-  roughness: 0.25,
+  roughness: 0.35,
   envMapIntensity: 2.5,
   clearcoat: 1.0,
   clearcoatRoughness: 0,
@@ -90,7 +90,7 @@ export function createStoneMaterial(config: StoneMaterialConfig): THREE.MeshPhys
     attenuationDistance: 0.5,
     attenuationColor: config.color,
     specularIntensity: 1.0,
-    specularColor: new THREE.Color("#ffffff"),
+    specularColor: new THREE.Color("#e6e6e6"),
     metalness: 0,
     envMapIntensity: 3.0,
     clearcoat: 1.0,

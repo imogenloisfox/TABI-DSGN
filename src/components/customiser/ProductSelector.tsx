@@ -16,17 +16,16 @@ const CATEGORIES: CategoryOption[] = [
     id: "ring",
     label: "Ring",
     variants: [
-      { id: "ringClassic",       label: "Classic" },
-      { id: "ringConcave",       label: "Concave" },
-      { id: "ringConcaveTriple", label: "Concave Triple" },
+      { id: "ringClassic", label: "Type 01" },
+      { id: "ringConcave", label: "Type 02" },
     ],
   },
   {
     id: "pendant",
     label: "Pendant",
     variants: [
-      { id: "pendantClassic", label: "Classic" },
-      { id: "pendantLowSet",  label: "Low Set" },
+      { id: "pendantOne", label: "Type 01" },
+      { id: "pendantTwo", label: "Type 02" },
     ],
   },
   {
@@ -50,8 +49,8 @@ export default function ProductSelector({ selectedCategory, selectedVariant, onS
   };
 
   return (
-    <div className="bg-surface px-3 py-2.5">
-      <p className="mb-2 text-[10px] font-mono tracking-wide text-muted uppercase">Piece</p>
+    <div className="bg-background px-3 py-2.5">
+      <p className="mb-2 text-[10px] font-mono tracking-wide text-foreground uppercase">Jewellery</p>
 
       {/* Category buttons */}
       <div className="flex gap-1.5">
@@ -59,10 +58,10 @@ export default function ProductSelector({ selectedCategory, selectedVariant, onS
           <button
             key={cat.id}
             onClick={() => handleCategoryClick(cat)}
-            className={`flex-1 cursor-pointer border px-2 py-1.5 text-[11px] font-medium transition-colors duration-100 ${
+            className={`btn-primary flex-1 cursor-pointer border border-foreground px-2 py-1.5 text-[10px] font-mono ${
               selectedCategory === cat.id
-                ? "border-foreground bg-foreground text-surface"
-                : "border-border bg-transparent text-foreground hover:border-border-strong"
+                ? "bg-foreground text-surface"
+                : "bg-surface text-black"
             }`}
           >
             {cat.label}
@@ -77,10 +76,10 @@ export default function ProductSelector({ selectedCategory, selectedVariant, onS
             <button
               key={v.id}
               onClick={() => onSelect(activeCategory.id, v.id)}
-              className={`flex-1 cursor-pointer border px-2 py-1 text-[10px] font-mono tracking-wide transition-colors duration-100 ${
+              className={`btn-primary flex-1 cursor-pointer border border-foreground px-2 py-1.5 text-[10px] font-mono ${
                 selectedVariant === v.id
-                  ? "border-foreground text-foreground"
-                  : "border-border text-muted hover:border-border-strong hover:text-foreground"
+                  ? "bg-foreground text-surface"
+                  : "bg-surface text-black"
               }`}
             >
               {v.label}

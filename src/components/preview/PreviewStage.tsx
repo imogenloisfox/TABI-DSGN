@@ -3,6 +3,7 @@
 import dynamic from "next/dynamic";
 import * as THREE from "three";
 import type { ProductVariant, FinishType, GemstoneId, GemPosition } from "@/lib/customiser/types";
+import type { SceneCanvasHandle } from "@/components/preview/scene/SceneCanvas";
 
 const SceneCanvas = dynamic(
   () => import("@/components/preview/scene/SceneCanvas"),
@@ -20,6 +21,8 @@ interface PreviewStageProps {
   gemPosition:        GemPosition;
   gemPositionLeft:    GemPosition;
   gemPositionRight:   GemPosition;
+  onCaptureReady?:    ((handle: SceneCanvasHandle | null) => void) | null;
+  cameraResetSignal?: number;
 }
 
 export default function PreviewStage({
@@ -33,9 +36,11 @@ export default function PreviewStage({
   gemPosition,
   gemPositionLeft,
   gemPositionRight,
+  onCaptureReady,
+  cameraResetSignal,
 }: PreviewStageProps) {
   return (
-    <div className="relative h-full w-full">
+    <div className="relative h-full w-full bg-background">
       <SceneCanvas
         variant={variant}
         finish={finish}
@@ -47,6 +52,8 @@ export default function PreviewStage({
         gemPosition={gemPosition}
         gemPositionLeft={gemPositionLeft}
         gemPositionRight={gemPositionRight}
+        onCaptureReady={onCaptureReady}
+        cameraResetSignal={cameraResetSignal}
       />
 
       {!variant && (

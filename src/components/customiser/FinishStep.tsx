@@ -14,19 +14,19 @@ const OPTIONS: { id: FinishType; label: string }[] = [
 
 export default function FinishStep({ selected, onSelect }: FinishStepProps) {
   return (
-    <div className="bg-surface px-3 py-2.5">
-      <p className="mb-2 text-[10px] font-mono tracking-wide text-muted uppercase">
-        Finish
+    <div className="bg-background px-3 py-2.5">
+      <p className="mb-2 text-[10px] font-mono tracking-wide text-foreground uppercase">
+        Metal Finish
       </p>
       <div className="flex gap-1.5">
         {OPTIONS.map((opt) => (
           <button
             key={opt.id}
             onClick={() => onSelect(opt.id)}
-            className={`flex-1 cursor-pointer border px-2 py-1.5 text-[11px] font-medium transition-colors duration-100 ${
+            className={`btn-primary flex-1 cursor-pointer border border-foreground px-2 py-1.5 text-[10px] font-mono ${
               selected === opt.id
-                ? "border-foreground bg-foreground text-surface"
-                : "border-border bg-transparent text-foreground hover:border-border-strong"
+                ? "bg-foreground text-surface"
+                : "bg-surface text-foreground"
             }`}
           >
             {opt.label}

@@ -1,5 +1,5 @@
-import CustomiserExperience from "@/components/customiser/CustomiserExperience";
+import App from "@/components/App";
 
 export default function Home() {
-  return <CustomiserExperience />;
+  return <App />;
 }

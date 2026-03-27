@@ -15,12 +15,12 @@ export interface ShopifyCheckoutPayload {
 export function buildCheckoutPayload(
   state: CustomiserState
 ): ShopifyCheckoutPayload | null {
-  if (!state.product || !state.finish) return null;
+  if (!state.variant || !state.finish) return null;
 
-  const needsGem = productUsesGemstone(state.product);
+  const needsGem = productUsesGemstone(state.variant);
   if (needsGem && !state.gemstone) return null;
 
-  const product = PRODUCTS[state.product];
+  const product = PRODUCTS[state.variant];
   const gemstone = state.gemstone ? getGemstone(state.gemstone) : null;
   if (needsGem && !gemstone) return null;
 

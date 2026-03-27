@@ -11,18 +11,18 @@ export default function StartPrompt({ onStart }: StartPromptProps) {
         <h1 className="font-script text-5xl md:text-7xl text-foreground leading-none">
           TABI
         </h1>
-        <p className="text-[10px] tracking-[0.3em] uppercase text-muted font-medium">
+        <p className="text-[10px] tracking-[0.3em] uppercase text-foreground font-mono">
           Engraving Customiser
         </p>
       </div>
 
-      <p className="max-w-xs text-xs leading-relaxed text-muted">
+      <p className="max-w-xs text-[10px] font-mono tracking-wide leading-relaxed text-foreground uppercase">
         Design your own personalised piece.
       </p>
 
       <button
         onClick={onStart}
-        className="cursor-pointer border border-foreground bg-surface px-6 py-2 text-[11px] font-medium tracking-wide text-foreground transition-colors duration-150 hover:bg-foreground hover:text-surface active:opacity-80"
+        className="btn-primary cursor-pointer border border-foreground bg-surface px-6 py-2 text-[11px] font-medium tracking-wide text-foreground"
       >
         Open Customiser
       </button>

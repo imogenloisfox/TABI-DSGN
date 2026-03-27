@@ -50,23 +50,21 @@ const VARIANT_MODELS = {
     setting:  "/models/CircleGem-Setting-v1.glb",
     gemstone: "/models/CircleGem-v1.glb",
   },
-  ringConcaveTriple: {
-    body:     "/models/Concave-Ring-v1.glb",
-    setting:  "/models/Concave-Ring-3-Setting.glb",
-    gemstone: "/models/Concave-Ring-3-Gemstone.glb",
-  },
-  pendantClassic: {
+  // ── Edit pendant asset paths here ────────────────────────────────────────
+  pendantOne: {
     body:     "/models/pendant.glb",
-    chain:    "/models/pendant-chain.glb",
+    chain:    "/models/Pendant-Chain-v6.glb",
+    hook:     "/models/Pendant-Chain-Hook.glb",
     setting:  "/models/pendant-setting.glb",
     gemstone: "/models/pendant-gemstone.glb",
   },
-  pendantLowSet: {
-    body:     "/models/pendant.glb",
-    chain:    "/models/pendant-chain.glb",
+  pendantTwo: {
+    body:     "/models/Pendant-Mini.glb",
+    chain:    "/models/Pendant-Chain-v6.glb",
     setting:  "/models/Pendant-Setting-Low.glb",
     gemstone: "/models/Pendant-Gemstone-Low.glb",
   },
+  // ─────────────────────────────────────────────────────────────────────────
   earrings: {
     leftBody:  "/models/Earring-Left-v1.glb",
     rightBody: "/models/Earring-Right-v1.glb",
@@ -99,23 +97,23 @@ interface ZoomCurve {
 
 // Edit zoom values here
 const RING_ZOOM: ZoomCurve = {
-  scaleClose: 0.5, scaleBase: 0.5, scaleFar: 0.5,
+  scaleClose: 0.55, scaleBase: 0.5, scaleFar: 0.5,
   yClose: 0, yBase: 0, yFar: 0,
 };
 
-const PENDANT_CLASSIC_ZOOM: ZoomCurve = {
-  scaleClose: 0.5, scaleBase: 0.5, scaleFar: 0.5,
+const PENDANT_ONE_ZOOM: ZoomCurve = {
+  scaleClose: 0.55, scaleBase: 0.5, scaleFar: 0.5,
   yClose: -0.1, yBase: -0.2, yFar: -0.3,
 };
 
-const PENDANT_LOW_SET_ZOOM: ZoomCurve = {
-  scaleClose: 0.5, scaleBase: 0.5, scaleFar: 0.5,
-  yClose: -0, yBase: -0.2, yFar: -0.3,
+const PENDANT_TWO_ZOOM: ZoomCurve = {
+  scaleClose: 0.55, scaleBase: 0.5, scaleFar: 0.5,
+  yClose: -0.15, yBase: -0.2, yFar: -0.3,
 };
 
 const EARRINGS_ZOOM: ZoomCurve = {
-  scaleClose: 0.5, scaleBase: 0.5, scaleFar: 0.5,
-  yClose: 0, yBase: 0, yFar: 0,
+  scaleClose: 0.65, scaleBase: 0.6, scaleFar: 0.6,
+  yClose: -0, yBase: 0, yFar: 0,
 };
 
 function evalCurve(u: number, c: ZoomCurve): { scale: number; y: number } {
@@ -280,19 +278,19 @@ export default function ProductModel({
   }, [gemstone, setStone]);
 
   // ─── Zoom curves ──────────────────────────────────────────────────────────
-  const ringCurveRef          = useRef<ZoomCurve>(RING_ZOOM);
-  const pendantClassicCurveRef = useRef<ZoomCurve>(PENDANT_CLASSIC_ZOOM);
-  const pendantLowSetCurveRef  = useRef<ZoomCurve>(PENDANT_LOW_SET_ZOOM);
-  const earringsCurveRef       = useRef<ZoomCurve>(EARRINGS_ZOOM);
-  ringCurveRef.current           = RING_ZOOM;
-  pendantClassicCurveRef.current = PENDANT_CLASSIC_ZOOM;
-  pendantLowSetCurveRef.current  = PENDANT_LOW_SET_ZOOM;
-  earringsCurveRef.current       = EARRINGS_ZOOM;
+  const ringCurveRef      = useRef<ZoomCurve>(RING_ZOOM);
+  const pendantOneCurveRef = useRef<ZoomCurve>(PENDANT_ONE_ZOOM);
+  const pendantTwoCurveRef = useRef<ZoomCurve>(PENDANT_TWO_ZOOM);
+  const earringsCurveRef   = useRef<ZoomCurve>(EARRINGS_ZOOM);
+  ringCurveRef.current       = RING_ZOOM;
+  pendantOneCurveRef.current = PENDANT_ONE_ZOOM;
+  pendantTwoCurveRef.current = PENDANT_TWO_ZOOM;
+  earringsCurveRef.current   = EARRINGS_ZOOM;
 
   const activeCurveRef =
-    variant === "earrings"       ? earringsCurveRef        :
-    variant === "pendantLowSet"  ? pendantLowSetCurveRef   :
-    variant === "pendantClassic" ? pendantClassicCurveRef  :
+    variant === "earrings"   ? earringsCurveRef   :
+    variant === "pendantTwo" ? pendantTwoCurveRef :
+    variant === "pendantOne" ? pendantOneCurveRef :
     ringCurveRef;
 
   const metalConfig: MetalMaterialConfig = {
@@ -361,18 +359,6 @@ export default function ProductModel({
           </group>
         </>
 
-      ) : variant === "ringConcaveTriple" ? (
-        <>
-          <MetalPart
-            url={VARIANT_MODELS.ringConcaveTriple.body}
-            config={metalConfig}
-            bumpMap={bumpMap}
-            colorTintMap={colorTintMap}
-          />
-          <MetalPart url={VARIANT_MODELS.ringConcaveTriple.setting}  config={metalConfig} />
-          <StonePart url={VARIANT_MODELS.ringConcaveTriple.gemstone} config={stoneConfig} />
-        </>
-
       ) : variant === "ringClassic" ? (
         <>
           <MetalPart
@@ -385,31 +371,33 @@ export default function ProductModel({
           <StonePart url={VARIANT_MODELS.ringClassic.gemstone} config={stoneConfig} />
         </>
 
-      ) : variant === "pendantLowSet" ? (
+      ) : variant === "pendantTwo" ? (
+        // Pendant 2: Mini body + chain + low setting + low gemstone
         <>
           <MetalPart
-            url={VARIANT_MODELS.pendantLowSet.body}
+            url={VARIANT_MODELS.pendantTwo.body}
             config={metalConfig}
             bumpMap={bumpMap}
             colorTintMap={colorTintMap}
           />
-          <MetalPart url={VARIANT_MODELS.pendantLowSet.chain}   config={metalConfig} />
-          <MetalPart url={VARIANT_MODELS.pendantLowSet.setting}  config={metalConfig} />
-          <StonePart url={VARIANT_MODELS.pendantLowSet.gemstone} config={stoneConfig} />
+          <MetalPart url={VARIANT_MODELS.pendantTwo.chain}   config={metalConfig} />
+          <MetalPart url={VARIANT_MODELS.pendantTwo.setting}  config={metalConfig} />
+          <StonePart url={VARIANT_MODELS.pendantTwo.gemstone} config={stoneConfig} />
         </>
 
       ) : (
-        // pendantClassic (default pendant)
+        // Pendant 1: Standard body + chain + hook + standard setting + standard gemstone
         <>
           <MetalPart
-            url={VARIANT_MODELS.pendantClassic.body}
+            url={VARIANT_MODELS.pendantOne.body}
             config={metalConfig}
             bumpMap={bumpMap}
             colorTintMap={colorTintMap}
           />
-          <MetalPart url={VARIANT_MODELS.pendantClassic.chain}   config={metalConfig} />
-          <MetalPart url={VARIANT_MODELS.pendantClassic.setting}  config={metalConfig} />
-          <StonePart url={VARIANT_MODELS.pendantClassic.gemstone} config={stoneConfig} />
+          <MetalPart url={VARIANT_MODELS.pendantOne.chain}   config={metalConfig} />
+          <MetalPart url={VARIANT_MODELS.pendantOne.hook}    config={metalConfig} />
+          <MetalPart url={VARIANT_MODELS.pendantOne.setting}  config={metalConfig} />
+          <StonePart url={VARIANT_MODELS.pendantOne.gemstone} config={stoneConfig} />
         </>
       )}
     </ZoomDrivenGroup>
@@ -423,14 +411,16 @@ useGLTF.preload(VARIANT_MODELS.ringClassic.gemstone);
 useGLTF.preload(VARIANT_MODELS.ringConcave.body);
 useGLTF.preload(VARIANT_MODELS.ringConcave.setting);
 useGLTF.preload(VARIANT_MODELS.ringConcave.gemstone);
-useGLTF.preload(VARIANT_MODELS.ringConcaveTriple.setting);
-useGLTF.preload(VARIANT_MODELS.ringConcaveTriple.gemstone);
-useGLTF.preload(VARIANT_MODELS.pendantClassic.body);
-useGLTF.preload(VARIANT_MODELS.pendantClassic.chain);
-useGLTF.preload(VARIANT_MODELS.pendantClassic.setting);
-useGLTF.preload(VARIANT_MODELS.pendantClassic.gemstone);
-useGLTF.preload(VARIANT_MODELS.pendantLowSet.setting);
-useGLTF.preload(VARIANT_MODELS.pendantLowSet.gemstone);
+
+useGLTF.preload(VARIANT_MODELS.pendantOne.body);
+useGLTF.preload(VARIANT_MODELS.pendantOne.chain);
+useGLTF.preload(VARIANT_MODELS.pendantOne.hook);
+useGLTF.preload(VARIANT_MODELS.pendantOne.setting);
+useGLTF.preload(VARIANT_MODELS.pendantOne.gemstone);
+useGLTF.preload(VARIANT_MODELS.pendantTwo.body);
+useGLTF.preload(VARIANT_MODELS.pendantTwo.chain);
+useGLTF.preload(VARIANT_MODELS.pendantTwo.setting);
+useGLTF.preload(VARIANT_MODELS.pendantTwo.gemstone);
 useGLTF.preload(VARIANT_MODELS.earrings.leftBody);
 useGLTF.preload(VARIANT_MODELS.earrings.rightBody);
 useGLTF.preload(VARIANT_MODELS.earrings.leftGem);

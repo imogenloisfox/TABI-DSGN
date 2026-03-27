@@ -11,11 +11,11 @@ interface ReviewPanelProps {
 }
 
 export default function ReviewPanel({ state }: ReviewPanelProps) {
-  const product = state.product ? PRODUCTS[state.product] : null;
+  const product = state.variant ? PRODUCTS[state.variant] : null;
   const gemstone = state.gemstone ? getGemstone(state.gemstone) : null;
-  const needsGem = productUsesGemstone(state.product);
+  const needsGem = productUsesGemstone(state.variant);
   const isComplete = Boolean(
-    state.product &&
+    state.variant &&
       state.finish &&
       (!needsGem || state.gemstone) &&
       state.engraving.text

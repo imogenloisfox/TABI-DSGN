@@ -3,10 +3,14 @@ export type ProductCategory = "ring" | "pendant" | "earrings";
 export type ProductVariant =
   | "ringClassic"
   | "ringConcave"
-  | "ringConcaveTriple"
-  | "pendantClassic"
-  | "pendantLowSet"
+  | "pendantOne"
+  | "pendantTwo"
   | "earrings";
+
+/** Checkout / summary: earrings have no centre stone SKU */
+export function productUsesGemstone(variant: ProductVariant | null): boolean {
+  return variant !== null && variant !== "earrings";
+}
 
 export type EngravingGroup = "ring" | "pendant";
 
@@ -54,6 +58,13 @@ export type GemstoneId =
 
 export type FinishType = "shiny" | "matte";
 
+export const UK_RING_SIZES = ['F','G','H','I','J','K','L','M','N','O','P','Q','R','S','T','U','V','W','X','Y','Z'] as const;
+export type UKRingSize = typeof UK_RING_SIZES[number];
+
+export function variantIsRing(variant: ProductVariant | null): boolean {
+  return variant === "ringClassic" || variant === "ringConcave";
+}
+
 export type AppView = "start" | "workspace";
 
 export interface GemPosition { x: number; y: number; }
@@ -89,17 +100,103 @@ export interface CustomiserState {
   gemPosition:       GemPosition;
   gemPositionLeft:   GemPosition;
   gemPositionRight:  GemPosition;
+  ringSize:          UKRingSize | null;
 }
 
+// ─── Per-variant engraving slider configuration ───────────────────────────────
+// Single source of truth for all slider ranges and default values.
+// spacing: null means the spacing slider is hidden entirely (earrings).
+
+export interface EngravingSliderRange {
+  min:     number;
+  max:     number;
+  default: number;
+}
+
+export interface EngravingSliderConfig {
+  posX:    EngravingSliderRange;
+  posY:    EngravingSliderRange;
+  size:    EngravingSliderRange;
+  spacing: EngravingSliderRange | null;
+}
+
+export const ENGRAVING_SLIDER_CONFIG: Record<ProductVariant, EngravingSliderConfig> = {
+  ringClassic: {
+    posX:    { min: -0.4, max: 0.4, default: 0.04 }, // 55% of range
+    posY:    { min: -0.4, max: 0.4, default: 0.0  }, // 50%
+    size:    { min: 0.2,  max: 1.2, default: 0.7  }, // 50%
+    spacing: { min: 0.3,  max: 0.7, default: 0.6  },
+  },
+  ringConcave: {
+    posX:    { min: -0.4, max: 0.4, default: 0.04 }, // 55%
+    posY:    { min: -0.4, max: 0.4, default: 0.0  }, // 50%
+    size:    { min: 0.2,  max: 1.2, default: 0.7  }, // 50%
+    spacing: { min: 0.3,  max: 0.7, default: 0.6  },
+  },
+  pendantOne: {
+    posX:    { min: -0.4, max: 0.4, default: 0.08 }, // 60%
+    posY:    { min: -0.4, max: 0.4, default: 0.0  }, // 50%
+    size:    { min: 0.2,  max: 0.92, default: 0.56 }, // 50%
+    spacing: { min: 0.3,  max: 0.7, default: 0.6  },
+  },
+  pendantTwo: {
+    posX:    { min: -0.4, max: 0.4, default: 0.08 }, // 60%
+    posY:    { min: -0.4, max: 0.4, default: 0.0  }, // 50%
+    size:    { min: 0.2,  max: 0.92, default: 0.56 }, // 50%
+    spacing: { min: 0.3,  max: 0.7, default: 0.6  },
+  },
+  earrings: {
+    posX:    { min: -0.3, max: 0.3, default: 0.0 },
+    posY:    { min: -0.4, max: 0.2, default: 0.0 },
+    size:    { min: 0.1,  max: 0.4, default: 0.25 },
+    spacing: null,
+  },
+};
+
+// ─── Engraving defaults (derived from slider config) ─────────────────────────
+
 export const ENGRAVING_DEFAULTS: Record<EngravingGroup, EngravingParams> = {
-  ring:    { text: "", offsetX: 0.02, offsetY:  0.00, fontSize: 0.80, rotation: -180, lineSpacing: 1.0 },
-  pendant: { text: "", offsetX: 0.05, offsetY:  0.00, fontSize: 0.75, rotation: -180, lineSpacing: 1.0 },
+  ring: {
+    text:        "",
+    offsetX:     ENGRAVING_SLIDER_CONFIG.ringClassic.posX.default,
+    offsetY:     ENGRAVING_SLIDER_CONFIG.ringClassic.posY.default,
+    fontSize:    ENGRAVING_SLIDER_CONFIG.ringClassic.size.default,
+    rotation:    -180,
+    lineSpacing: ENGRAVING_SLIDER_CONFIG.ringClassic.spacing!.default,
+  },
+  pendant: {
+    text:        "",
+    offsetX:     ENGRAVING_SLIDER_CONFIG.pendantOne.posX.default,
+    offsetY:     ENGRAVING_SLIDER_CONFIG.pendantOne.posY.default,
+    fontSize:    ENGRAVING_SLIDER_CONFIG.pendantOne.size.default,
+    rotation:    -180,
+    lineSpacing: ENGRAVING_SLIDER_CONFIG.pendantOne.spacing!.default,
+  },
 };
 
 export const ENGRAVING_DEFAULTS_EARRING: Record<"earringLeft" | "earringRight", EngravingParams> = {
-  earringLeft:  { text: "", offsetX: 0.00, offsetY: -0.15, fontSize: 0.28, rotation:  90, lineSpacing: 1.0 },
-  earringRight: { text: "", offsetX: 0.00, offsetY: -0.15, fontSize: 0.28, rotation: -90, lineSpacing: 1.0 },
+  // posX 53%, posY 52%, size 50% of earring slider ranges
+  earringLeft: {
+    text:        "",
+    offsetX:      0.018,  // 53% of -0.3…0.3
+    offsetY:     -0.088,  // 52% of -0.4…0.2
+    fontSize:     0.25,   // 50% of 0.1…0.4
+    rotation:    -90,
+    lineSpacing:  1.0,
+  },
+  // posX 47%, posY 45%, size 43% of earring slider ranges
+  earringRight: {
+    text:        "",
+    offsetX:     -0.018,  // 47% of -0.3…0.3
+    offsetY:     -0.13,   // 45% of -0.4…0.2
+    fontSize:     0.229,  // 43% of 0.1…0.4
+    rotation:     90,
+    lineSpacing:  1.0,
+  },
 };
+
+// Earring gem position defaults — gemX 50%, gemY 3% of EARRING_GEM_BOUNDS ranges
+export const EARRING_GEM_POSITION_DEFAULT: GemPosition = { x: 0, y: -0.023 };
 
 export const DEFAULT_ENGRAVING: EngravingParams = ENGRAVING_DEFAULTS.ring;
 
@@ -111,8 +208,25 @@ export const INITIAL_STATE: CustomiserState = {
   engravingLeft:  ENGRAVING_DEFAULTS_EARRING.earringLeft,
   engravingRight: ENGRAVING_DEFAULTS_EARRING.earringRight,
   gemstone:          "white-cz",
-  finish:            null,
+  finish:            "shiny",
   gemPosition:       { x: 0, y: 0 },
-  gemPositionLeft:   { x: 0, y: 0 },
-  gemPositionRight:  { x: 0, y: 0 },
+  gemPositionLeft:   EARRING_GEM_POSITION_DEFAULT,
+  gemPositionRight:  EARRING_GEM_POSITION_DEFAULT,
+  ringSize:          "M",
+};
+
+/** Default workspace state for Ring Classic — used by resetAll() */
+export const RESET_STATE: CustomiserState = {
+  view:           "workspace",
+  category:       "ring",
+  variant:        "ringClassic",
+  engraving:      ENGRAVING_DEFAULTS.ring,
+  engravingLeft:  ENGRAVING_DEFAULTS_EARRING.earringLeft,
+  engravingRight: ENGRAVING_DEFAULTS_EARRING.earringRight,
+  gemstone:          "white-cz",
+  finish:            "shiny",
+  gemPosition:       { x: 0, y: 0 },
+  gemPositionLeft:   EARRING_GEM_POSITION_DEFAULT,
+  gemPositionRight:  EARRING_GEM_POSITION_DEFAULT,
+  ringSize:          "M",
 };

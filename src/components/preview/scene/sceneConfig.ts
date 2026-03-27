@@ -18,8 +18,8 @@ export const ORBIT_CONSTRAINTS = {
   enablePan:     false,
   enableDamping: true,
   dampingFactor: 0.04,        // low = heavy, momentum-driven feel
-  rotateSpeed:   0.6,         // slightly slower than default — feels premium
-  zoomSpeed:     0.5,         // controlled, deliberate zoom
+  rotateSpeed:   0.5,         // slightly slower than default — feels premium
+  zoomSpeed:     0.4,         // controlled, deliberate zoom
   minDistance:   ORBIT_DISTANCE.min,
   maxDistance:   3.25,
   minPolarAngle: Math.PI / 3,

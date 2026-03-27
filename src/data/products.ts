@@ -1,7 +1,7 @@
-import type { ProductType } from "@/lib/customiser/types";
+import type { ProductVariant } from "@/lib/customiser/types";
 
 export interface ProductOption {
-  id: ProductType;
+  id: ProductVariant;
   label: string;
   description: string;
   previewImage: string;
@@ -9,30 +9,38 @@ export interface ProductOption {
   shopifyHandle: string;
 }
 
-export const PRODUCTS: Record<ProductType, ProductOption> = {
-  ring: {
-    id: "ring",
-    label: "Ring",
-    description: "Wide polished silver band with emerald-cut stone",
+export const PRODUCTS: Record<ProductVariant, ProductOption> = {
+  ringClassic: {
+    id: "ringClassic",
+    label: "Ring — Classic",
+    description: "Wide polished silver band with stone",
     previewImage: "/images/ring/ring-plain.png",
     dimensions: { width: 17, height: 17, unit: "mm" },
     shopifyHandle: "tabi-engraving-ring",
   },
-  pendant: {
-    id: "pendant",
-    label: "Pendant",
-    description: "Rectangular silver tag with emerald-cut stone",
-    previewImage: "/images/pendant/pendant-plain.png",
-    dimensions: { width: 15, height: 17, unit: "mm" },
-    shopifyHandle: "tabi-engraving-pendant",
-  },
   ringConcave: {
     id: "ringConcave",
-    label: "Ring Concave",
-    description: "Wide concave band, engraving only",
+    label: "Ring — Concave",
+    description: "Wide concave band with stone",
     previewImage: "/images/ring/ring-plain.png",
     dimensions: { width: 17, height: 17, unit: "mm" },
     shopifyHandle: "tabi-engraving-ring-concave",
+  },
+  pendantOne: {
+    id: "pendantOne",
+    label: "Pendant 1",
+    description: "Pendant with chain, hook, and standard setting",
+    previewImage: "/images/pendant/pendant-plain.png",
+    dimensions: { width: 15, height: 17, unit: "mm" },
+    shopifyHandle: "tabi-engraving-pendant-1",
+  },
+  pendantTwo: {
+    id: "pendantTwo",
+    label: "Pendant 2",
+    description: "Mini body with chain and low-set stone",
+    previewImage: "/images/pendant/pendant-plain.png",
+    dimensions: { width: 12, height: 14, unit: "mm" },
+    shopifyHandle: "tabi-engraving-pendant-2",
   },
   earrings: {
     id: "earrings",
