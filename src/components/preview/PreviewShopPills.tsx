@@ -24,18 +24,11 @@ export default function PreviewShopPills({ variant, topOffsetPx }: { variant: Pr
   const category = variant !== null ? variantCategory(variant) : null;
   const priceBgClass = categoryPreviewPricePillBgClass(category);
 
-  // Base position: 1rem (16px) + 30px pill row = 46px.
-  // Extra translateY offsets when info panel opens (leftChromeStackPx > 30).
+  // Mobile: top-left, slides down when info panel opens
   const extraOffset = topOffsetPx !== undefined ? Math.max(0, topOffsetPx - 30) : 0;
 
-  return (
-    <div
-      className="fixed top-[46px] left-4 z-[100] flex flex-row items-center gap-0"
-      style={{
-        transform: `translateY(${extraOffset}px)`,
-        transition: `transform ${FLOATING_PANEL_MOTION_MS}ms ${FLOATING_PANEL_EASING}`,
-      }}
-    >
+  const pills = (
+    <>
       <div
         role="status"
         aria-live="polite"
@@ -59,6 +52,26 @@ export default function PreviewShopPills({ variant, topOffsetPx }: { variant: Pr
           buy
         </button>
       )}
-    </div>
+    </>
+  );
+
+  return (
+    <>
+      {/* Mobile: top-left, moves down with info panel */}
+      <div
+        className="md:hidden fixed top-[46px] left-4 z-[100] flex flex-row items-center gap-0"
+        style={{
+          transform: `translateY(${extraOffset}px)`,
+          transition: `transform ${FLOATING_PANEL_MOTION_MS}ms ${FLOATING_PANEL_EASING}`,
+        }}
+      >
+        {pills}
+      </div>
+
+      {/* Desktop: bottom-left, same padding as header */}
+      <div className="hidden md:flex fixed bottom-4 left-4 z-[100] flex-row items-center gap-0">
+        {pills}
+      </div>
+    </>
   );
 }

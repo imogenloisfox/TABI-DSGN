@@ -96,7 +96,7 @@ export default function SiteHeader({
           <VanishButton
             onClick={onSave}
             disabled={isSaving}
-            className={`flex ${CHROME_TOP_PILL_BASE} relative z-10 w-[80px] shrink-0 justify-center overflow-visible normal-case lowercase !bg-[#8D8D8D] !text-[#2a2c2d] disabled:cursor-wait disabled:opacity-50 ${HEADER_CHROME_HOVER_INVERT}`}
+            className={`flex md:hidden ${CHROME_TOP_PILL_BASE} relative z-10 w-[80px] shrink-0 justify-center overflow-visible normal-case lowercase !bg-[#8D8D8D] !text-[#2a2c2d] disabled:cursor-wait disabled:opacity-50 ${HEADER_CHROME_HOVER_INVERT}`}
             style={{ ...CHROME_HEADER_FONT, boxShadow: "none" }}
           >
             {isSaving ? "saving…" : "save"}
@@ -106,7 +106,7 @@ export default function SiteHeader({
         {onReset ? (
           <VanishButton
             onClick={onReset}
-            className={`flex ${CHROME_TOP_PILL_BASE} relative z-10 w-[80px] shrink-0 justify-center overflow-visible normal-case lowercase !bg-[#7A7A7A] !text-[#2a2c2d] ${HEADER_CHROME_HOVER_INVERT}`}
+            className={`flex md:hidden ${CHROME_TOP_PILL_BASE} relative z-10 w-[80px] shrink-0 justify-center overflow-visible normal-case lowercase !bg-[#7A7A7A] !text-[#2a2c2d] ${HEADER_CHROME_HOVER_INVERT}`}
             style={{ ...CHROME_HEADER_FONT, boxShadow: "none" }}
           >
             reset

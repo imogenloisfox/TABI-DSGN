@@ -464,8 +464,8 @@ export default function SceneCanvas({
       {isDev && <DevDiagnostics />}
     </Canvas>
     <PreviewShopPills variant={variant} topOffsetPx={leftChromeStackPx} />
-    {/* Hidden on mobile — only show on desktop where there's room in the header row */}
-    <div className="hidden md:flex fixed top-4 left-[416px] z-[100] flex-row items-center gap-0">
+    {/* Desktop only — bottom right, same padding as header */}
+    <div className="hidden md:flex fixed bottom-4 right-4 z-[100] flex-row items-center gap-0">
       <PreviewOnlinePill />
       {isDev ? <DevFpsPillOverlay metrics={devFpsMetrics} /> : null}
     </div>
