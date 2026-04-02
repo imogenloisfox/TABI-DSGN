@@ -1,12 +1,5 @@
 import type { Metadata } from "next";
-import { Inter } from "next/font/google";
 import "./globals.css";
-
-const inter = Inter({
-  variable: "--font-inter",
-  subsets: ["latin"],
-  weight: ["300", "400", "500", "600"],
-});
 
 export const metadata: Metadata = {
   title: "TABI DSGN | Engraving Customiser",
@@ -21,9 +14,13 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en">
-      <body className={`${inter.variable} font-sans antialiased`}>
-        {children}
-      </body>
+      <head>
+        {/* Preload the default ring body so it's ready before the homepage canvas mounts.
+            HDRI preload removed — 1.5 MB is too costly on mobile networks and the file
+            is cached permanently (max-age=31536000, immutable) after first load anyway. */}
+        <link rel="preload" href="/models/RING-MOI.glb" as="fetch" crossOrigin="anonymous" />
+      </head>
+      <body className="font-sans antialiased">{children}</body>
     </html>
   );
 }

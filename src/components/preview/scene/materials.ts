@@ -25,8 +25,8 @@ const METAL_SHINY: MetalMaterialConfig = {
   metalness: 0.98,
   roughness: 0.1,
   envMapIntensity: 2.5,
-  clearcoat: 0.8,
-  clearcoatRoughness: 0.05,
+  clearcoat: 0,
+  clearcoatRoughness: 0,
   reflectivity: 0.9,
 };
 
@@ -35,13 +35,24 @@ const METAL_MATTE: MetalMaterialConfig = {
   metalness: 1,
   roughness: 0.35,
   envMapIntensity: 2.5,
-  clearcoat: 1.0,
+  clearcoat: 0,
   clearcoatRoughness: 0,
   reflectivity: 0.5,
 };
 
 export function getMetalConfig(finish: FinishType | null): MetalMaterialConfig {
   return finish === "matte" ? { ...METAL_MATTE } : { ...METAL_SHINY };
+}
+
+/**
+ * Secondary metal config for chain links, hooks, settings, and prongs.
+ * Clearcoat is disabled — these parts are small, rarely in focus, and the
+ * second specular lobe calculation is wasted GPU time on them.
+ * envMapIntensity is also halved relative to the primary body config.
+ */
+export function getSecondaryMetalConfig(finish: FinishType | null): MetalMaterialConfig {
+  const base = getMetalConfig(finish);
+  return { ...base, clearcoat: 0, clearcoatRoughness: 0, envMapIntensity: 1.0 };
 }
 
 export function createMetalMaterial(config: MetalMaterialConfig): THREE.MeshPhysicalMaterial {
@@ -66,7 +77,7 @@ export function getStoneConfig(gemstoneId: GemstoneId | null): StoneMaterialConf
       transmission: 1.0,
       ior: 2.42,
       roughness: 0.05,
-      thickness: 1.0,
+      thickness: 3.0,
     };
   }
 
@@ -75,7 +86,7 @@ export function getStoneConfig(gemstoneId: GemstoneId | null): StoneMaterialConf
     transmission: 1.0,
     ior: 2.42,
     roughness: 0.0,
-    thickness: 1.0,
+    thickness: 3.0,
   };
 }
 
@@ -86,16 +97,18 @@ export function createStoneMaterial(config: StoneMaterialConfig): THREE.MeshPhys
     ior: config.ior,
     roughness: config.roughness,
     thickness: config.thickness,
-    // Hardcoded gem appearance — not managed by Leva
+    // Hardcoded gem appearance
     attenuationDistance: 0.5,
     attenuationColor: config.color,
     specularIntensity: 1.0,
-    specularColor: new THREE.Color("#e6e6e6"),
+    specularColor: new THREE.Color("#f9f9f9"),
     metalness: 0,
-    envMapIntensity: 3.0,
-    clearcoat: 1.0,
-    clearcoatRoughness: 0.0,
+    envMapIntensity: 1.5,
+    clearcoat: 0,
+    clearcoatRoughness: 0,
     reflectivity: 1.0,
+    // DoubleSide retained for gemstone geometry — transmissive materials
+    // require back-face rendering for correct refraction through the stone.
     side: THREE.DoubleSide,
     transparent: true,
   });

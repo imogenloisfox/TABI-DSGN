@@ -32,11 +32,14 @@ export default function ReviewPanel({ state }: ReviewPanelProps) {
   return (
     <div className="flex h-full flex-col justify-between p-3">
       <div>
-        <p className="mb-3 text-[10px] font-mono tracking-wide text-muted uppercase">
+        <p className="mb-3 text-[10px] font-mono tracking-normal text-muted">
           Summary
         </p>
         <div className="flex flex-col gap-2 text-[11px]">
-          <SummaryRow label="Piece" value={product?.label ?? "—"} />
+          <SummaryRow
+            label="Piece"
+            value={product?.label ? product.label.toLowerCase() : "—"}
+          />
           <SummaryRow
             label="Initial"
             value={state.engraving.text || "—"}
@@ -51,7 +54,7 @@ export default function ReviewPanel({ state }: ReviewPanelProps) {
           )}
           <SummaryRow
             label="Finish"
-            value={state.finish ? state.finish.charAt(0).toUpperCase() + state.finish.slice(1) : "—"}
+            value={state.finish ? state.finish.toLowerCase() : "—"}
           />
         </div>
       </div>
@@ -59,9 +62,9 @@ export default function ReviewPanel({ state }: ReviewPanelProps) {
       <button
         onClick={handlePurchase}
         disabled={!isComplete}
-        className="mt-4 w-full cursor-pointer border border-foreground bg-foreground px-3 py-2 text-[10px] font-medium tracking-[0.12em] uppercase text-surface transition-opacity hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-30"
+        className="mt-4 w-full cursor-pointer border border-foreground bg-surface px-3 py-2 text-[10px] font-medium tracking-normal lowercase text-foreground disabled:cursor-not-allowed disabled:opacity-30"
       >
-        Continue to Purchase
+        continue to purchase
       </button>
     </div>
   );
@@ -80,7 +83,7 @@ function SummaryRow({
 }) {
   return (
     <div className="flex items-center justify-between">
-      <span className="text-[10px] font-mono text-muted uppercase">{label}</span>
+      <span className="text-[10px] font-mono tracking-normal text-muted">{label}</span>
       <div className="flex items-center gap-1.5">
         {swatch && (
           <span

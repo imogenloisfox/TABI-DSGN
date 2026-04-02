@@ -1,20 +1,55 @@
 "use client";
 
-import { Suspense, useCallback, useEffect, useRef, type RefObject } from "react";
+import {
+  Suspense,
+  useCallback,
+  useEffect,
+  useRef,
+  useState,
+  type RefObject,
+} from "react";
 import * as THREE from "three";
 import { Canvas, useThree, useFrame } from "@react-three/fiber";
 import { OrbitControls } from "@react-three/drei";
-import { RoomEnvironment } from "three/addons/environments/RoomEnvironment.js";
-import { RGBELoader } from "three/addons/loaders/RGBELoader.js";
-import { useControls } from "leva";
 import type { ProductVariant, FinishType, GemstoneId, GemPosition } from "@/lib/customiser/types";
-import { CAMERA_CONFIG, ORBIT_CONSTRAINTS, ORBIT_DISTANCE } from "./sceneConfig";
+import {
+  DevFpsMetricsCollector,
+  DevFpsPillOverlay,
+  type DevFpsSample,
+} from "@/components/preview/DevFpsSessionChrome";
+import { CAMERA_CONFIG, ORBIT_CONSTRAINTS, DEFAULT_ORBIT_DISTANCE } from "./sceneConfig";
 import ProductModel, { type OrbitControlsHandle } from "./ProductModel";
 import StudioLighting from "./StudioLighting";
+import { getEnvTexture } from "@/lib/envTextureCache";
+import PreviewOnlinePill from "@/components/preview/PreviewOnlinePill";
+import PreviewShopPills from "@/components/preview/PreviewShopPills";
+
+/** Slightly longer than aside `duration-[480ms]` so layout has settled before resync. */
+const PREVIEW_LAYOUT_RESYNC_MS = 520;
+
+// ─── Dev-only performance diagnostics (draw calls / DPR) ─────────────────────
+
+function DevDiagnostics() {
+  const { gl } = useThree();
+  const frameRef = useRef(0);
+
+  useEffect(() => {
+    console.log("[perf] current DPR:", gl.getPixelRatio());
+  }, [gl]);
+
+  useFrame(() => {
+    frameRef.current++;
+    if (frameRef.current % 60 === 0) {
+      console.log("[perf] draw calls:", gl.info.render.calls);
+    }
+  });
+
+  return null;
+}
 
 // ─── Scene background colour ──────────────────────────────────────────────────
 
-const BG_COLOR = new THREE.Color("#e6e6e6");
+const BG_COLOR = new THREE.Color("#e9e9e9");
 
 function SceneClearColor() {
   const { scene } = useThree();
@@ -32,6 +67,8 @@ function SceneClearColor() {
 
 export interface SceneCanvasHandle {
   captureAngles(): Promise<{ front: string; left: string; right: string }>;
+  /** Single front (θ=0) capture at current orbit distance / polar angle — higher DPR for PDF hero page. */
+  captureHeroFront(): Promise<string | null>;
 }
 
 // ─── Inner component — lives inside Canvas, has access to useThree ────────────
@@ -43,7 +80,18 @@ function CaptureHelper({
   orbitRef: RefObject<OrbitControlsHandle | null>;
   onCaptureReady?: ((handle: SceneCanvasHandle | null) => void) | null;
 }) {
-  const { gl, scene, camera } = useThree();
+  const { gl, scene, camera, invalidate } = useThree();
+
+  const syncCameraAspect = useCallback(() => {
+    const el = gl.domElement;
+    const cw = el.clientWidth;
+    const ch = el.clientHeight;
+    if (cw <= 0 || ch <= 0) return;
+    if (camera instanceof THREE.PerspectiveCamera) {
+      camera.aspect = cw / ch;
+      camera.updateProjectionMatrix();
+    }
+  }, [gl, camera]);
 
   const captureAngles = useCallback(async (): Promise<{
     front: string;
@@ -62,12 +110,12 @@ function CaptureHelper({
 
     if (controls) controls.enabled = false;
 
-    // Compute current orbit radius and polar angle.
-    // Captures use 60% of the current radius (40% closer) to fill the frame better.
+    // Match on-screen product scale: use the same orbit radius as the live preview
+    // (ProductModel maps zoom ↔ scale from ORBIT_DISTANCE / DEFAULT_ORBIT_DISTANCE).
     const offset    = camera.position.clone().sub(savedTarget);
     const spherical = new THREE.Spherical().setFromVector3(offset);
     const { phi } = spherical;
-    const captureRadius = spherical.radius * 0.6;
+    const captureRadius = Math.max(1e-4, spherical.radius);
 
     async function captureAt(theta: number): Promise<string> {
       const dir = new THREE.Vector3().setFromSpherical(
@@ -77,7 +125,6 @@ function CaptureHelper({
       camera.lookAt(savedTarget);
       if (controls) controls.update();
 
-      // Wait two animation frames so the renderer has fully updated
       await new Promise<void>((r) => setTimeout(r, 60));
       gl.render(scene, camera);
       return gl.domElement.toDataURL("image/png");
@@ -87,7 +134,6 @@ function CaptureHelper({
     const left  = await captureAt(-Math.PI / 2);
     const right = await captureAt( Math.PI / 2);
 
-    // Restore original camera
     camera.position.copy(savedPos);
     camera.lookAt(savedTarget);
     if (controls) {
@@ -96,14 +142,97 @@ function CaptureHelper({
     }
     await new Promise<void>((r) => setTimeout(r, 60));
     gl.render(scene, camera);
+    invalidate();
 
     return { front, left, right };
-  }, [gl, scene, camera, orbitRef]);
+  }, [gl, scene, camera, orbitRef, invalidate]);
+
+  const captureHeroFront = useCallback(async (): Promise<string | null> => {
+    const controls = orbitRef.current as unknown as {
+      target:   THREE.Vector3;
+      enabled:  boolean;
+      update(): void;
+    } | null;
+
+    const savedPos     = camera.position.clone();
+    const savedTarget  = controls?.target.clone() ?? new THREE.Vector3();
+    const savedEnabled = controls?.enabled ?? true;
+
+    const el = gl.domElement;
+    const cw = el.clientWidth;
+    const ch = el.clientHeight;
+    if (cw <= 0 || ch <= 0) return null;
+
+    if (controls) controls.enabled = false;
+
+    const offset    = camera.position.clone().sub(savedTarget);
+    const spherical = new THREE.Spherical().setFromVector3(offset);
+    const { phi } = spherical;
+    const r = Math.max(1e-4, spherical.radius);
+
+    const prevDpr = gl.getPixelRatio();
+    const heroDpr = Math.min(2.5, Math.max(2, prevDpr * 1.5));
+
+    gl.setPixelRatio(heroDpr);
+    gl.setSize(cw, ch, false);
+    syncCameraAspect();
+
+    const dir = new THREE.Vector3().setFromSpherical(new THREE.Spherical(r, phi, 0));
+    camera.position.copy(savedTarget).add(dir);
+    camera.lookAt(savedTarget);
+    if (controls) controls.update();
+
+    await new Promise<void>((resolve) => setTimeout(resolve, 80));
+    gl.render(scene, camera);
+    const dataUrl = gl.domElement.toDataURL("image/png");
+
+    gl.setPixelRatio(prevDpr);
+    gl.setSize(cw, ch, false);
+    syncCameraAspect();
+
+    camera.position.copy(savedPos);
+    camera.lookAt(savedTarget);
+    if (controls) {
+      controls.enabled = savedEnabled;
+      controls.update();
+    }
+    await new Promise<void>((r) => setTimeout(r, 60));
+    gl.render(scene, camera);
+    invalidate();
+
+    return dataUrl;
+  }, [gl, scene, camera, orbitRef, invalidate, syncCameraAspect]);
 
   useEffect(() => {
-    onCaptureReady?.({ captureAngles });
+    onCaptureReady?.({ captureAngles, captureHeroFront });
     return () => { onCaptureReady?.(null); };
-  }, [captureAngles, onCaptureReady]);
+  }, [captureAngles, captureHeroFront, onCaptureReady]);
+
+  return null;
+}
+
+/** After the flex sidebar finishes its width transition, nudge projection + controls so framing does not drift. */
+function PreviewLayoutResync({
+  layoutEpoch,
+  orbitRef,
+}: {
+  layoutEpoch: number;
+  orbitRef: RefObject<OrbitControlsHandle | null>;
+}) {
+  const { camera, invalidate } = useThree();
+
+  useEffect(() => {
+    if (layoutEpoch === 0) return;
+    const id = window.setTimeout(() => {
+      const ctrl = orbitRef.current as { update?: () => void } | null;
+      ctrl?.update?.();
+      if (camera instanceof THREE.PerspectiveCamera) {
+        camera.updateProjectionMatrix();
+      }
+      invalidate();
+    }, PREVIEW_LAYOUT_RESYNC_MS);
+    return () => clearTimeout(id);
+  }, [layoutEpoch, camera, orbitRef]);
 
   return null;
 }
@@ -118,7 +247,7 @@ function CameraController({
   orbitRef:           RefObject<OrbitControlsHandle | null>;
   cameraResetSignal?: number;
 }) {
-  const { camera }       = useThree();
+  const { camera } = useThree();
   const transitioningRef = useRef(false);
   const targetPosRef     = useRef(new THREE.Vector3());
 
@@ -131,11 +260,10 @@ function CameraController({
       // Hard reset: lerp toward the supplied absolute position
       targetPosRef.current.copy(targetPosition);
     } else {
-      // Variant switch: aim at mid-orbit distance along current view direction
-      const midDist = ORBIT_DISTANCE.min + 0.5 * (ORBIT_DISTANCE.max - ORBIT_DISTANCE.min);
+      // Variant switch: same default framing as initial load (zoomed in), along current view direction
       const dir = camera.position.clone().sub(ctrl.target);
       if (dir.lengthSq() < 1e-8) dir.set(0, 0, 1); else dir.normalize();
-      targetPosRef.current.copy(ctrl.target).addScaledVector(dir, midDist);
+      targetPosRef.current.copy(ctrl.target).addScaledVector(dir, DEFAULT_ORBIT_DISTANCE);
     }
 
     transitioningRef.current = true;
@@ -173,37 +301,21 @@ function CameraController({
       ctrl.enabled = true;
       ctrl.update();
     }
+
   });
 
   return null;
 }
 
-type EnvSource = "Room (procedural)" | "HDRI file";
-
 function ConfigurableEnvironment() {
   const { gl, scene } = useThree();
-  const envRef = useRef<THREE.Texture | null>(null);
 
-  const {
-    source,
-    hdriPath,
-    exposure,
-    showBackground,
-    backgroundBlurriness,
-    backgroundIntensity,
-  } = useControls("Environment", {
-    source: {
-      value: "HDRI file" as EnvSource,
-      options: ["Room (procedural)", "HDRI file"] as EnvSource[],
-    },
-    hdriPath: { value: "/hdri/studio_small_09_1k.hdr", label: "HDRI path" },
-    exposure: { value: 1.4, min: 0.2, max: 4.0, step: 0.05 },
-    showBackground: { value: false, label: "Show background" },
-    backgroundBlurriness: { value: 0.6, min: 0, max: 1, step: 0.01, label: "BG blur" },
-    backgroundIntensity: { value: 0.7, min: 0, max: 2, step: 0.05, label: "BG intensity" },
-  });
-
-  const rotationX = 2.45;
+  const hdriPath             = "/hdri/studio_small_09_1k.hdr";
+  const exposure             = 1.4;
+  const showBackground       = false;
+  const backgroundBlurriness = 0.6;
+  const backgroundIntensity  = 0.7;
+  const rotationX            = 2.45;
 
   useEffect(() => {
     gl.toneMappingExposure = exposure;
@@ -212,7 +324,7 @@ function ConfigurableEnvironment() {
   useEffect(() => {
     scene.backgroundBlurriness = backgroundBlurriness;
     scene.backgroundIntensity = backgroundIntensity;
-    scene.background = showBackground && envRef.current ? envRef.current : null;
+    scene.background = showBackground ? (scene.environment ?? null) : null;
   }, [scene, showBackground, backgroundBlurriness, backgroundIntensity]);
 
   useEffect(() => {
@@ -221,50 +333,23 @@ function ConfigurableEnvironment() {
   }, [scene, rotationX]);
 
   useEffect(() => {
-    if (envRef.current) {
-      envRef.current.dispose();
-      envRef.current = null;
-      scene.environment = null;
-      scene.background = null;
-    }
-
-    const applyEnv = (tex: THREE.Texture) => {
+    // Use module-level singleton cache — second scene reuses the same texture,
+    // skipping a full RGBELoader + PMREMGenerator round-trip.
+    getEnvTexture(gl, hdriPath).then((tex) => {
       scene.environment = tex;
       scene.background = showBackground ? tex : null;
-      envRef.current = tex;
-    };
-
-    if (source === "Room (procedural)") {
-      const pmrem = new THREE.PMREMGenerator(gl);
-      applyEnv(pmrem.fromScene(new RoomEnvironment(), 0.04).texture);
-      pmrem.dispose();
-    } else {
-      const pmrem = new THREE.PMREMGenerator(gl);
-      new RGBELoader().load(
-        hdriPath,
-        (hdrTexture) => {
-          applyEnv(pmrem.fromEquirectangular(hdrTexture).texture);
-          hdrTexture.dispose();
-          pmrem.dispose();
-        },
-        undefined,
-        () => {
-          console.warn(
-            `Failed to load HDRI from ${hdriPath}. Drop an .hdr file in public/hdri/ and set the path.`
-          );
-          pmrem.dispose();
-        }
+    }).catch(() => {
+      console.warn(
+        `Failed to load HDRI from ${hdriPath}. Drop an .hdr file in public/hdri/ and set the path.`
       );
-    }
+    });
 
     return () => {
-      if (envRef.current) {
-        envRef.current.dispose();
-        scene.environment = null;
-        scene.background = null;
-      }
+      // Do NOT dispose the texture here — it is shared via the module cache.
+      scene.environment = null;
+      scene.background = null;
     };
-  }, [gl, scene, source, hdriPath, showBackground]);
+  }, [gl, scene, hdriPath, showBackground]);
 
   return null;
 }
@@ -284,6 +369,9 @@ interface SceneCanvasProps {
   gemPositionRight:   GemPosition;
   onCaptureReady?:    ((handle: SceneCanvasHandle | null) => void) | null;
   cameraResetSignal?: number;
+  previewLayoutEpoch?: number;
+  /** Height of the fixed left chrome stack — drives PreviewShopPills top offset. */
+  leftChromeStackPx?: number;
 }
 
 export default function SceneCanvas({
@@ -299,26 +387,52 @@ export default function SceneCanvas({
   gemPositionRight,
   onCaptureReady,
   cameraResetSignal,
+  previewLayoutEpoch = 0,
+  leftChromeStackPx,
 }: SceneCanvasProps) {
   const orbitRef = useRef<OrbitControlsHandle>(null);
+  const isDev    = process.env.NODE_ENV === "development";
+  const isMobile = typeof window !== "undefined" && window.innerWidth < 768;
+
+  const [devFpsMetrics, setDevFpsMetrics] = useState<DevFpsSample>({
+    fps:    0,
+    msAvg:  0,
+    heapMb: null,
+  });
+  const devSampleRef = useRef<(sample: DevFpsSample) => void>(setDevFpsMetrics);
+  devSampleRef.current = setDevFpsMetrics;
 
   return (
+    <>
     <Canvas
+      className="r3f-canvas-wrapper"
+      resize={{ scroll: false }}
       camera={CAMERA_CONFIG}
+      // Cap DPR at 1 on low-end devices (< 4 cores); cap at 2 otherwise.
+      dpr={typeof navigator !== "undefined" && navigator.hardwareConcurrency < 4 ? 1 : [1, 2]}
       style={{
-        width: "100%",
-        height: "100%",
-        background: "rgba(230, 230, 230, 1)",
+        width:           "100%",
+        height:          "100%",
+        background:      "rgba(233, 233, 233, 1)",
+        backgroundColor: "rgba(233, 233, 233, 1)",
+        // Prevent double-tap zoom on mobile; OrbitControls handles pinch-to-zoom natively.
+        touchAction:     "manipulation",
       }}
       gl={{
         antialias: true,
         toneMapping: THREE.ACESFilmicToneMapping,
         toneMappingExposure: 1.4,
-        preserveDrawingBuffer: true,   // required for toDataURL() on export
+        // preserveDrawingBuffer must remain true: captureAngles() calls gl.render()
+        // then reads gl.domElement.toDataURL() after a setTimeout delay. With
+        // preserveDrawingBuffer: false the browser may clear the buffer before
+        // toDataURL is reached. Refactoring capture to a synchronous render→read
+        // in a single microtask would allow removing this, but is out of scope here.
+        preserveDrawingBuffer: true,
       }}
     >
       <SceneClearColor />
       <CaptureHelper orbitRef={orbitRef} onCaptureReady={onCaptureReady} />
+      <PreviewLayoutResync layoutEpoch={previewLayoutEpoch} orbitRef={orbitRef} />
       <CameraController variant={variant} orbitRef={orbitRef} cameraResetSignal={cameraResetSignal} />
       <Suspense fallback={null}>
         <ConfigurableEnvironment />
@@ -340,7 +454,21 @@ export default function SceneCanvas({
         )}
       </Suspense>
 
-      <OrbitControls ref={orbitRef} makeDefault {...ORBIT_CONSTRAINTS} />
+      <OrbitControls
+        ref={orbitRef}
+        makeDefault
+        {...ORBIT_CONSTRAINTS}
+        enableZoom={!isMobile}
+      />
+      {isDev && <DevFpsMetricsCollector onSampleRef={devSampleRef} />}
+      {isDev && <DevDiagnostics />}
     </Canvas>
+    <PreviewShopPills variant={variant} topOffsetPx={leftChromeStackPx} />
+    {/* Hidden on mobile — only show on desktop where there's room in the header row */}
+    <div className="hidden md:flex fixed top-4 left-[416px] z-[100] flex-row items-center gap-0">
+      <PreviewOnlinePill />
+      {isDev ? <DevFpsPillOverlay metrics={devFpsMetrics} /> : null}
+    </div>
+    </>
   );
 }

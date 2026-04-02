@@ -8,12 +8,26 @@ import type { EngravingParams } from "@/lib/customiser/types";
 // EngravingTarget = engraving canvas key: ring/pendant groups + per-earring keys
 export type EngravingTarget = EngravingGroup | "earringLeft" | "earringRight";
 
-export const CANVAS_SIZE: Record<EngravingTarget, { w: number; h: number }> = {
+// Desktop canvas dimensions — also used by CANVAS_FOR_PIECE (safe-zone fraction computation).
+const CANVAS_SIZE_DESKTOP: Record<EngravingTarget, { w: number; h: number }> = {
   ring:         { w: 2048, h: 512  },
-  pendant:      { w: 2048, h: 2048 },
+  pendant:      { w: 1024, h: 1024 },
   earringLeft:  { w: 512,  h: 2048 },
   earringRight: { w: 512,  h: 2048 },
 };
+
+// On mobile, halve all canvas dimensions to halve GPU texture memory usage.
+// Safe-zone fractions are scale-invariant so no other constants need changing.
+const isMobileDevice = typeof window !== "undefined" && window.innerWidth < 768;
+
+export const CANVAS_SIZE: Record<EngravingTarget, { w: number; h: number }> = isMobileDevice
+  ? {
+      ring:         { w: 1024, h: 256  },
+      pendant:      { w: 512,  h: 512  },
+      earringLeft:  { w: 256,  h: 1024 },
+      earringRight: { w: 256,  h: 1024 },
+    }
+  : CANVAS_SIZE_DESKTOP;
 
 // ─── Safe zone margins (fraction of canvas dimension) ─────────────────────────
 
@@ -24,6 +38,9 @@ export interface SafeZoneMargins {
   right:  number;
 }
 
+/** Set to `true` to draw the dashed safe-zone frame on the 3D tint texture (bump export stays clean). */
+export const SHOW_ENGRAVING_SAFE_ZONE_GUIDE = false;
+
 // ─── Per-piece safe zone insets (canvas pixels per side) ──────────────────────
 // Each jewellery piece has its own entry. Edit the pixel numbers here to move
 // the boundary guide and tune when the out-of-bounds warning fires.
@@ -33,22 +50,32 @@ export interface SafeZoneMargins {
 //   earringLeft / earringRight  →  512  × 2048
 export type PieceSafeZoneKey = Exclude<ProductVariant, "earrings"> | "earringLeft" | "earringRight";
 
+// Always reference desktop dimensions so getSafeZone() fractions are consistent
+// regardless of whether CANVAS_SIZE was scaled down for mobile.
 const CANVAS_FOR_PIECE: Record<PieceSafeZoneKey, { w: number; h: number }> = {
-  ringClassic:  CANVAS_SIZE.ring,
-  ringConcave:  CANVAS_SIZE.ring,
-  pendantOne:   CANVAS_SIZE.pendant,
-  pendantTwo:   CANVAS_SIZE.pendant,
-  earringLeft:  CANVAS_SIZE.earringLeft,
-  earringRight: CANVAS_SIZE.earringRight,
+  ringClassic:      CANVAS_SIZE_DESKTOP.ring,
+  ringConcave:      CANVAS_SIZE_DESKTOP.ring,
+  ringClassicNoGem: CANVAS_SIZE_DESKTOP.ring,
+  ringConcaveNoGem: CANVAS_SIZE_DESKTOP.ring,
+  pendantOne:       CANVAS_SIZE_DESKTOP.pendant,
+  pendantTwo:       CANVAS_SIZE_DESKTOP.pendant,
+  pendantMesmo:     CANVAS_SIZE_DESKTOP.pendant,
+  earringLeft:      CANVAS_SIZE_DESKTOP.earringLeft,
+  earringRight:     CANVAS_SIZE_DESKTOP.earringRight,
 };
 
 const SAFE_ZONE_PX: Record<PieceSafeZoneKey, SafeZoneMargins> = {
-  ringClassic:  { top: 25,  bottom: 25,  left: 400,  right: 400  },
-  ringConcave:  { top: 50,  bottom: 50,  left: 300,  right: 300  },
-  pendantOne:   { top: 80, bottom:  80, left: 80, right: 80 },
-  pendantTwo:   { top: 100, bottom: 100, left: 280, right: 280 },
-  earringLeft:  { top: 50, bottom: 565, left: 65,  right: 65  },
-  earringRight: { top: 50, bottom: 565, left: 65,  right: 65  },
+  ringClassic:      { top: 25,  bottom: 25,  left: 400,  right: 400  },
+  ringConcave:      { top: 50,  bottom: 50,  left: 300,  right: 300  },
+  ringClassicNoGem: { top: 25,  bottom: 25,  left: 400,  right: 400  },
+  ringConcaveNoGem: { top: 50,  bottom: 50,  left: 300,  right: 300  },
+  // Pixel values halved from their 2048×2048 originals to preserve the same
+  // fractional safe-zone margins now that pendant canvas is 1024×1024.
+  pendantOne:       { top: 25, bottom:  30, left: 30, right: 30 },
+  pendantTwo:       { top: 100, bottom: 90, left: 30, right: 30 },
+  pendantMesmo:     { top: 30, bottom:  30, left: 90, right: 90 },
+  earringLeft:      { top: 50, bottom: 565, left: 65,  right: 65  },
+  earringRight:     { top: 50, bottom: 565, left: 65,  right: 65  },
 };
 
 export function getSafeZone(key: PieceSafeZoneKey): SafeZoneMargins {
@@ -79,7 +106,7 @@ let fontLoading: Promise<void> | null = null;
 
 export function loadFont(): Promise<void> {
   if (fontLoaded) return Promise.resolve();
-  if (fontLoading)  return fontLoading;
+  if (fontLoading) return fontLoading;
   fontLoading = new FontFace(FONT_FAMILY, `url(${FONT_URL})`)
     .load()
     .then((face) => {
@@ -131,6 +158,28 @@ function drawText(
  * ascenders, and rotated glyphs are all captured accurately on every side.
  * Must be called after the font is loaded.
  */
+/** Dashed rectangle in canvas pixels — drawn on tint texture only when SHOW_ENGRAVING_SAFE_ZONE_GUIDE */
+function drawSafeZoneGuide(
+  ctx: CanvasRenderingContext2D,
+  w:   number,
+  h:   number,
+  sz:  SafeZoneMargins,
+) {
+  const x  = sz.left * w;
+  const y  = sz.top * h;
+  const rw = w * (1 - sz.left - sz.right);
+  const rh = h * (1 - sz.top - sz.bottom);
+  if (rw <= 1 || rh <= 1) return;
+
+  const lw = Math.max(1, Math.round(Math.min(w, h) / 800));
+  ctx.save();
+  ctx.strokeStyle = "rgba(0, 190, 70, 0.92)";
+  ctx.lineWidth   = lw;
+  ctx.setLineDash([7 * (w / 2048), 5 * (w / 2048)]);
+  ctx.strokeRect(x + lw / 2, y + lw / 2, rw - lw, rh - lw);
+  ctx.restore();
+}
+
 export function checkTextOutOfBounds(
   params: EngravingParams,
   w:      number,
@@ -142,10 +191,10 @@ export function checkTextOutOfBounds(
   const temp    = document.createElement("canvas");
   temp.width    = w;
   temp.height   = h;
-  const ctx     = temp.getContext("2d")!;
+  const ctx     = temp.getContext("2d", { willReadFrequently: true })!;
 
   // Draw text exactly as the engraving renderer does
-  drawText(ctx, params, w, h, "#ffffff");
+  drawText(ctx, params, w, h, "#f9f9f9");
 
   // Scan alpha channel to find the true rendered bounding box
   const data = ctx.getImageData(0, 0, w, h).data;
@@ -174,28 +223,6 @@ export function checkTextOutOfBounds(
   );
 }
 
-/** Draws a red dashed safe-zone boundary on the canvas. */
-function drawSafeZoneBorder(
-  ctx:          CanvasRenderingContext2D,
-  w:            number,
-  h:            number,
-  sz:           SafeZoneMargins,
-  thicknessMult = 1,
-) {
-  const base = Math.round(Math.min(w, h) * 0.01 * thicknessMult);
-  ctx.save();
-  ctx.strokeStyle = "rgb(0, 0, 0)";
-  ctx.lineWidth   = base;
-  ctx.setLineDash([base * 1, base]);
-  ctx.strokeRect(
-    sz.left   * w,
-    sz.top    * h,
-    w * (1 - sz.left   - sz.right),
-    h * (1 - sz.top    - sz.bottom),
-  );
-  ctx.setLineDash([]);
-  ctx.restore();
-}
 
 // ── Engraved — noise texture via masked pixel pass ────────────────────────────
 
@@ -215,7 +242,7 @@ function drawMaskedLines(
   // Extract text alpha mask — blur softens edges for smooth bump transitions
   ctx.clearRect(0, 0, w, h);
   ctx.filter = "blur(0.5px)";
-  drawText(ctx, params, w, h, "#e6e6e6");
+  drawText(ctx, params, w, h, "#f9f9f9");
   ctx.filter = "none";
   const maskPixels = ctx.getImageData(0, 0, w, h).data;
   const mask = new Uint8ClampedArray(w * h);
@@ -264,7 +291,7 @@ function drawMaskedLines(
   ctx.putImageData(baseImg, 0, 0);
 
   // Ultra-bright 2px clusters — edge only, rare large flash points
-  ctx.fillStyle = "#e6e6e6";
+  ctx.fillStyle = "#f9f9f9";
   for (let i = 0; i < mask.length; i++) {
     if (edgeMask[i] === 1 && Math.random() < 0.003) {
       const col = i % w;
@@ -276,12 +303,12 @@ function drawMaskedLines(
 
 export function drawBumpEngraved(ctx: CanvasRenderingContext2D, params: EngravingParams, w: number, h: number) {
   if (!params.text) { ctx.fillStyle = "#000000"; ctx.fillRect(0, 0, w, h); return; }
-  drawMaskedLines(ctx, params, w, h, [0, 0, 0], [190, 190, 190]);
+  drawMaskedLines(ctx, params, w, h, [0, 0, 0], [217, 217, 218]);
 }
 
 function drawTintEngraved(ctx: CanvasRenderingContext2D, params: EngravingParams, w: number, h: number, grooveTint: string) {
-  if (!params.text) { ctx.fillStyle = "#e6e6e6"; ctx.fillRect(0, 0, w, h); return; }
-  drawMaskedLines(ctx, params, w, h, [230, 230, 230], hexToRgb(grooveTint));
+  if (!params.text) { ctx.fillStyle = "#f9f9f9"; ctx.fillRect(0, 0, w, h); return; }
+  drawMaskedLines(ctx, params, w, h, [249, 249, 249], hexToRgb(grooveTint));
 }
 
 // ── Texture helper ────────────────────────────────────────────────────────────
@@ -306,6 +333,7 @@ export interface EngravingTextures {
   bumpMap:      THREE.CanvasTexture;
   colorTintMap: THREE.CanvasTexture;
   bumpCanvas:   HTMLCanvasElement | null;
+  tintCanvas:   HTMLCanvasElement | null;
   exportPNG:    () => void;
   isOutOfBounds: boolean;
 }
@@ -365,8 +393,10 @@ export function useEngravingTexture(
     bumpCanvasRef.current = bumpCanvas;
     tintCanvasRef.current = tintCanvas;
 
-    bumpCanvas.getContext("2d")!.fillStyle = "#000"; bumpCanvas.getContext("2d")!.fillRect(0,0,w,h);
-    tintCanvas.getContext("2d")!.fillStyle = "#e6e6e6"; tintCanvas.getContext("2d")!.fillRect(0,0,w,h);
+    const bumpInitCtx = bumpCanvas.getContext("2d", { willReadFrequently: true })!;
+    bumpInitCtx.fillStyle = "#000"; bumpInitCtx.fillRect(0, 0, w, h);
+    const tintInitCtx = tintCanvas.getContext("2d", { willReadFrequently: true })!;
+    tintInitCtx.fillStyle = "#f9f9f9"; tintInitCtx.fillRect(0, 0, w, h);
 
     const bump = makeTex(bumpCanvas);
     const tint = makeTex(tintCanvas);
@@ -399,17 +429,14 @@ export function useEngravingTexture(
       const prms = paramsRef.current;
 
       drawBumpEngraved(bumpCanvasRef.current.getContext("2d")!, prms, w, h);
-      drawTintEngraved(tintCanvasRef.current.getContext("2d")!, prms, w, h, grooveTintRef.current);
+      const tintCtx = tintCanvasRef.current.getContext("2d")!;
+      drawTintEngraved(tintCtx, prms, w, h, grooveTintRef.current);
+      if (SHOW_ENGRAVING_SAFE_ZONE_GUIDE) drawSafeZoneGuide(tintCtx, w, h, sz);
 
       // Safe-zone check via pixel scanning — all sides captured accurately
       const oob = prms.text ? checkTextOutOfBounds(prms, w, h, sz) : false;
       setIsOutOfBounds(oob);
 
-      // Only draw the guide border when text is out of bounds
-      if (oob) {
-        const isEarring = p === "earringLeft" || p === "earringRight";
-        drawSafeZoneBorder(tintCanvasRef.current.getContext("2d")!, w, h, sz, isEarring ? 2 : 1);
-      }
 
       if (bumpTexRef.current) bumpTexRef.current.needsUpdate = true;
       if (tintTexRef.current) tintTexRef.current.needsUpdate = true;
@@ -424,7 +451,7 @@ export function useEngravingTexture(
     const bCtx = bumpCanvasRef.current.getContext("2d")!;
     bCtx.fillStyle = "#000"; bCtx.fillRect(0, 0, bumpCanvasRef.current.width, bumpCanvasRef.current.height);
     const tCtx = tintCanvasRef.current.getContext("2d")!;
-    tCtx.fillStyle = "#e6e6e6"; tCtx.fillRect(0, 0, tintCanvasRef.current.width, tintCanvasRef.current.height);
+    tCtx.fillStyle = "#f9f9f9"; tCtx.fillRect(0, 0, tintCanvasRef.current.width, tintCanvasRef.current.height);
     if (bumpTexRef.current) bumpTexRef.current.needsUpdate = true;
     if (tintTexRef.current) tintTexRef.current.needsUpdate = true;
 
@@ -441,7 +468,7 @@ export function useEngravingTexture(
       redraw();
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [params, product, grooveTint]);
+  }, [params, product, grooveTint, variant]);
 
   const exportPNG = useCallback(() => {
     if (!bumpCanvasRef.current) return;
@@ -458,6 +485,7 @@ export function useEngravingTexture(
     bumpMap:      texState.bump,
     colorTintMap: texState.tint,
     bumpCanvas:   bumpCanvasRef.current,
+    tintCanvas:   tintCanvasRef.current,
     exportPNG,
     isOutOfBounds,
   };

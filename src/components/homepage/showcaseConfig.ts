@@ -1,13 +1,23 @@
 import { useGLTF } from "@react-three/drei";
-import type {
-  ProductCategory,
-  ProductVariant,
-  GemstoneId,
-  FinishType,
-  EngravingParams,
-  GemPosition,
+import {
+  ENGRAVING_SLIDER_CONFIG,
+  type ProductCategory,
+  type ProductVariant,
+  type GemstoneId,
+  type FinishType,
+  type EngravingParams,
+  type GemPosition,
 } from "@/lib/customiser/types";
-import { GEMSTONES } from "@/data/gemstones";
+import { GEMSTONES, randomGemstoneIndex } from "@/data/gemstones";
+
+/** Same mapping as BarSlider: percent 0–100 across slider min…max */
+function engravingValueAtSliderPercent(
+  min: number,
+  max: number,
+  percent: number,
+): number {
+  return min + (percent / 100) * (max - min);
+}
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -44,6 +54,15 @@ export interface ShowcasePieceConfig {
   spinSpeedY: number;
   spinSpeedZ: number;
 
+  /**
+   * Extra Euler rotation (radians), added on top of the bounded sine wobble each frame.
+   * Use to turn the piece at “spawn” without changing orbit path (unlike orbitPhaseX/Y,
+   * which also shift where the piece sits on its orbit).
+   */
+  spawnRotationX?: number;
+  spawnRotationY?: number;
+  spawnRotationZ?: number;
+
   // ── Collision box half-extents (world units) — for soft repulsion & debug viz
   colliderX: number;
   colliderY: number;
@@ -54,43 +73,98 @@ export interface ShowcasePieceConfig {
 
 export const SHOWCASE_ASSETS: Record<ProductVariant, { metal: readonly string[]; gems: readonly string[] }> = {
   ringClassic: {
-    metal: ["/models/ring.glb", "/models/ring-setting.glb"],
-    gems:  ["/models/ring-gemstone.glb"],
+    metal: ["/models/RING-MOI.glb", "/models/RING-MOI-SETTING.glb"],
+    gems:  ["/models/RING-MOI-GEMSTONE.glb"],
   },
   ringConcave: {
-    metal: ["/models/Concave-Ring-v1.glb", "/models/CircleGem-Setting-v1.glb"],
-    gems:  ["/models/CircleGem-v1.glb"],
+    metal: ["/models/RING-SUI.glb", "/models/RING-SUI-SETTING.glb"],
+    gems:  ["/models/RING-SUI-GEMSTONE.glb"],
   },
   pendantOne: {
-    metal: ["/models/pendant.glb", "/models/Pendant-Chain-Hook.glb", "/models/pendant-setting.glb"],
-    gems:  ["/models/pendant-gemstone.glb"],
+    metal: ["/models/PENDANT-SOI.glb", "/models/PENDANT-SOI-LINK.glb", "/models/PENDANT-SOI-SETTING.glb"],
+    gems:  ["/models/PENDANT-SOI-GEMSTONE.glb"],
   },
   pendantTwo: {
-    metal: ["/models/Pendant-Mini.glb", "/models/Pendant-Setting-Low.glb"],
-    gems:  ["/models/Pendant-Gemstone-Low.glb"],
+    metal: ["/models/PENDANT-MOMENT.glb", "/models/PENDANT-MOMENT-SETTING.glb"],
+    gems:  ["/models/PENDANT-MOMENT-GEMSTONE.glb"],
+  },
+  ringClassicNoGem: {
+    metal: ["/models/RING-MOI.glb"],
+    gems:  [],
+  },
+  ringConcaveNoGem: {
+    metal: ["/models/RING-SUI.glb"],
+    gems:  [],
+  },
+  pendantMesmo: {
+    metal: ["/models/PENDANT-MESMO.glb", "/models/PENDANT-MESMO-SETTING.glb"],
+    gems:  ["/models/PENDANT-MESMO-GEMSTONE.glb"],
   },
   earrings: {
-    metal: ["/models/Earring-Left-v1.glb", "/models/Earring-Right-v1.glb"],
-    gems:  ["/models/Earring-Gemstone-v1.glb", "/models/Earring-Gemstone-v2.glb"],
+    metal: ["/models/EARRING-LEFT.glb", "/models/EARRING-RIGHT.glb"],
+    gems:  ["/models/EARRING-LEFT-GEMSTONE.glb", "/models/EARRING-RIGHT-GEMSTONE.glb"],
   },
 };
 
 // ─── Random gem picker ────────────────────────────────────────────────────────
-// Called on each HomepageScene mount so gems change on every visit (page load
-// or "back" from the customiser). Earrings are excluded — they always use white.
+// First paint: `HomepageScene` initial state. After customiser: App bumps
+// `showcaseGemEpoch` on back. Order: ring classic, ring concave, SOI, MOMENT, MESMO.
+// Earrings always use white — not included in the five drawn from `pickUniqueGems`.
 
-export type FourGems = [GemstoneId, GemstoneId, GemstoneId, GemstoneId];
+export type ShowcaseRandomGems = [
+  GemstoneId,
+  GemstoneId,
+  GemstoneId,
+  GemstoneId,
+  GemstoneId,
+];
 
-export function pickUniqueGems(): FourGems {
-  const shuffled = [...GEMSTONES].sort(() => Math.random() - 0.5);
-  return shuffled.slice(0, 4).map((g) => g.id) as FourGems;
+export function pickUniqueGems(): ShowcaseRandomGems {
+  const arr = [...GEMSTONES];
+  for (let i = arr.length - 1; i > 0; i--) {
+    const j = randomGemstoneIndex(i + 1);
+    [arr[i], arr[j]] = [arr[j], arr[i]];
+  }
+  return arr.slice(0, 5).map((g) => g.id) as ShowcaseRandomGems;
 }
+
+/**
+ * Same slot order as `buildShowcasePieces`: ring classic, ring concave, SOI, MOMENT, MESMO.
+ * Used as defaults in remix presets; live remix applies a random gem (see CustomiserExperience).
+ */
+export const SHOWCASE_REMIX_GEMS: ShowcaseRandomGems = [
+  "garnet",
+  "amethyst",
+  "citrine",
+  "pink-tourmaline",
+  "peridot",
+];
 
 // ─── Piece configurations ─────────────────────────────────────────────────────
 // Orbital speeds are tuned ~30-40% slower than typical — thick-honey feel.
 // spinSpeedX/Y/Z differ per axis per piece for organic, non-repetitive tumbling.
 
-export function buildShowcasePieces(gems: FourGems): ShowcasePieceConfig[] {
+export function buildShowcasePieces(gems: ShowcaseRandomGems): ShowcasePieceConfig[] {
+  const mesmoSlider = ENGRAVING_SLIDER_CONFIG.pendantMesmo;
+  const mesmoEngraving: EngravingParams = {
+    text:        "404",
+    offsetX:     engravingValueAtSliderPercent(mesmoSlider.posX.min, mesmoSlider.posX.max, 59),
+    offsetY:     engravingValueAtSliderPercent(mesmoSlider.posY.min, mesmoSlider.posY.max, 53),
+    fontSize:    engravingValueAtSliderPercent(mesmoSlider.size.min, mesmoSlider.size.max, 68),
+    rotation:    -180,
+    lineSpacing: mesmoSlider.spacing!.default,
+  };
+
+  const moiSlider = ENGRAVING_SLIDER_CONFIG.ringClassic;
+  const moiEngraving: EngravingParams = {
+    text:        "X\n       E",
+    offsetX:     engravingValueAtSliderPercent(moiSlider.posX.min, moiSlider.posX.max, 71),
+    offsetY:     -0.08,
+    fontSize:    engravingValueAtSliderPercent(moiSlider.size.min, moiSlider.size.max, 93),
+    rotation:    -180,
+    lineSpacing: 0.15,
+  };
+
   return [
   {
     id:       "ring-classic",
@@ -98,7 +172,7 @@ export function buildShowcasePieces(gems: FourGems): ShowcasePieceConfig[] {
     scale:     1.1,
     gemstone: gems[0],
     finish:   "matte",
-    engraving: { text: "X\n       E", offsetX: 0.18, offsetY: -0.08, fontSize: 1.18, rotation: -180, lineSpacing: 0.15 },
+    engraving: moiEngraving,
     category: "ring",
     posZ:      2.0,
     orbitCenterX: -1.5,
@@ -123,7 +197,7 @@ export function buildShowcasePieces(gems: FourGems): ShowcasePieceConfig[] {
     gemstone: gems[1],
     finish:   "shiny",
     engraving:   { text: "Bisous", offsetX: 0.04, offsetY: 0.00, fontSize: 1.00, rotation: -180, lineSpacing: 1.0 },
-    gemPosition: { x: 0.07, y: 0.16 },
+    gemPosition: { x: 0.07, y: 0.25 },
     category: "ring",
     posZ:     -1.5,
     orbitCenterX:  5.5,
@@ -188,6 +262,32 @@ export function buildShowcasePieces(gems: FourGems): ShowcasePieceConfig[] {
     colliderX:     0.72,
     colliderY:     1.48,
     colliderZ:     0.20,
+  },
+  {
+    id:       "pendant-mesmo",
+    variant:  "pendantMesmo",
+    scale:     1.25,
+    gemstone:  gems[4],
+    finish:    "shiny",
+    engraving: mesmoEngraving,
+    category:  "pendant",
+    posZ:      0.5,
+    orbitCenterX:  2.4,
+    orbitCenterY:  2.2,
+    orbitRadiusX:  0.55,
+    orbitRadiusY:  -0.65,
+    orbitSpeedX:   0.095,
+    orbitSpeedY:   0.085,
+    orbitPhaseX:   0.85,
+    orbitPhaseY:   -3.2,
+    spinSpeedX:    0.07,
+    spinSpeedY:    0.33,
+    spinSpeedZ:    0.13,
+    // Pitch so the pendant face reads more upward / toward camera at spawn (radians).
+    spawnRotationX: -0.62,
+    colliderX:     0.95,
+    colliderY:     1.12,
+    colliderZ:     0.28,
   },
   {
     id:       "earrings",

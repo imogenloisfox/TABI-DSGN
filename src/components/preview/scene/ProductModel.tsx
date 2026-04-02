@@ -10,17 +10,18 @@ import {
 import * as THREE from "three";
 import { useFrame, useThree } from "@react-three/fiber";
 import { useGLTF, OrbitControls } from "@react-three/drei";
-import { useControls } from "leva";
 import type { ProductVariant, FinishType, GemstoneId, GemPosition } from "@/lib/customiser/types";
 import {
   type MetalMaterialConfig,
   type StoneMaterialConfig,
   getMetalConfig,
+  getSecondaryMetalConfig,
   getStoneConfig,
   createMetalMaterial,
   createStoneMaterial,
 } from "./materials";
-import { ORBIT_DISTANCE } from "./sceneConfig";
+import { DEFAULT_ORBIT_DISTANCE, ORBIT_DISTANCE } from "./sceneConfig";
+import { MOBILE_Y_OFFSETS } from "@/lib/mobileConfig";
 
 export type OrbitControlsHandle = ComponentRef<typeof OrbitControls>;
 
@@ -41,35 +42,41 @@ export interface ProductModelProps {
 // ─── Asset paths per variant ──────────────────────────────────────────────────
 const VARIANT_MODELS = {
   ringClassic: {
-    body:     "/models/ring.glb",
-    setting:  "/models/ring-setting.glb",
-    gemstone: "/models/ring-gemstone.glb",
+    body:     "/models/RING-MOI.glb",
+    setting:  "/models/RING-MOI-SETTING.glb",
+    gemstone: "/models/RING-MOI-GEMSTONE.glb",
   },
   ringConcave: {
-    body:     "/models/Concave-Ring-v1.glb",
-    setting:  "/models/CircleGem-Setting-v1.glb",
-    gemstone: "/models/CircleGem-v1.glb",
+    body:     "/models/RING-SUI.glb",
+    setting:  "/models/RING-SUI-SETTING.glb",
+    gemstone: "/models/RING-SUI-GEMSTONE.glb",
   },
   // ── Edit pendant asset paths here ────────────────────────────────────────
   pendantOne: {
-    body:     "/models/pendant.glb",
-    chain:    "/models/Pendant-Chain-v6.glb",
-    hook:     "/models/Pendant-Chain-Hook.glb",
-    setting:  "/models/pendant-setting.glb",
-    gemstone: "/models/pendant-gemstone.glb",
+    body:     "/models/PENDANT-SOI.glb",
+    chain:    "/models/PENDANT-CHAIN.glb",
+    hook:     "/models/PENDANT-SOI-LINK.glb",
+    setting:  "/models/PENDANT-SOI-SETTING.glb",
+    gemstone: "/models/PENDANT-SOI-GEMSTONE.glb",
   },
   pendantTwo: {
-    body:     "/models/Pendant-Mini.glb",
-    chain:    "/models/Pendant-Chain-v6.glb",
-    setting:  "/models/Pendant-Setting-Low.glb",
-    gemstone: "/models/Pendant-Gemstone-Low.glb",
+    body:     "/models/PENDANT-MOMENT.glb",
+    chain:    "/models/PENDANT-CHAIN.glb",
+    setting:  "/models/PENDANT-MOMENT-SETTING.glb",
+    gemstone: "/models/PENDANT-MOMENT-GEMSTONE.glb",
+  },
+  pendantMesmo: {
+    body:     "/models/PENDANT-MESMO.glb",
+    chain:    "/models/PENDANT-CHAIN.glb",
+    setting:  "/models/PENDANT-MESMO-SETTING.glb",
+    gemstone: "/models/PENDANT-MESMO-GEMSTONE.glb",
   },
   // ─────────────────────────────────────────────────────────────────────────
   earrings: {
-    leftBody:  "/models/Earring-Left-v1.glb",
-    rightBody: "/models/Earring-Right-v1.glb",
-    leftGem:   "/models/Earring-Gemstone-v1.glb",
-    rightGem:  "/models/Earring-Gemstone-v2.glb",
+    leftBody:  "/models/EARRING-LEFT.glb",
+    rightBody: "/models/EARRING-RIGHT.glb",
+    leftGem:   "/models/EARRING-LEFT-GEMSTONE.glb",
+    rightGem:  "/models/EARRING-RIGHT-GEMSTONE.glb",
   },
 } as const;
 
@@ -80,7 +87,7 @@ const DAMP_SCALE = 2;
 const DAMP_Y = 5;
 
 function orbitDistance(controls: OrbitControlsHandle | null, camera: THREE.Camera): number {
-  if (!controls) return (ORBIT_DISTANCE.min + ORBIT_DISTANCE.max) / 2;
+  if (!controls) return DEFAULT_ORBIT_DISTANCE;
   if (typeof controls.getDistance === "function") return controls.getDistance();
   return camera.position.distanceTo(controls.target);
 }
@@ -101,19 +108,30 @@ const RING_ZOOM: ZoomCurve = {
   yClose: 0, yBase: 0, yFar: 0,
 };
 
-const PENDANT_ONE_ZOOM: ZoomCurve = {
-  scaleClose: 0.55, scaleBase: 0.5, scaleFar: 0.5,
-  yClose: -0.1, yBase: -0.2, yFar: -0.3,
-};
+/** Pendant variants only — each has its own curve so yClose/yBase/yFar can differ per asset */
+type PendantZoomVariant = Extract<ProductVariant, "pendantOne" | "pendantTwo" | "pendantMesmo">;
 
-const PENDANT_TWO_ZOOM: ZoomCurve = {
-  scaleClose: 0.55, scaleBase: 0.5, scaleFar: 0.5,
-  yClose: -0.15, yBase: -0.2, yFar: -0.3,
+const PENDANT_ZOOM: Record<PendantZoomVariant, ZoomCurve> = {
+  // SOI (pendantOne)
+  pendantOne: {
+    scaleClose: 0.6, scaleBase: 0.55, scaleFar: 0.5,
+    yClose: -0.1, yBase: -0.2, yFar: -0.3,
+  },
+  // MOMENT (pendantTwo)
+  pendantTwo: {
+    scaleClose: 0.55, scaleBase: 0.5, scaleFar: 0.45,
+    yClose: 0.1, yBase: 0, yFar: -0.2,
+  },
+  // MESMO
+  pendantMesmo: {
+    scaleClose: 0.55, scaleBase: 0.5, scaleFar: 0.45,
+    yClose: 0.05, yBase: -0.1, yFar: -0.2,
+  },
 };
 
 const EARRINGS_ZOOM: ZoomCurve = {
   scaleClose: 0.65, scaleBase: 0.6, scaleFar: 0.6,
-  yClose: -0, yBase: 0, yFar: 0,
+  yClose: 0, yBase: 0, yFar: 0,
 };
 
 function evalCurve(u: number, c: ZoomCurve): { scale: number; y: number } {
@@ -147,17 +165,18 @@ function ZoomDrivenGroup({
   const sizeMultRef = useRef(sizeMultiplier);
   sizeMultRef.current = sizeMultiplier;
 
+  const isMobile    = typeof window !== "undefined" && window.innerWidth < 768;
+  const mobileYOffset = isMobile ? (MOBILE_Y_OFFSETS[variant] ?? 0) : 0;
+
+  // Intro: rotation only — scale stays at curve targets (starts at scaleBase / yBase on variant mount).
+  const introRef = useRef({ active: true, rot: Math.PI * 1.5, t: 0 });
+
   // Snap model scale/Y to the new curve's base values on variant switch.
   // Camera transition is handled by CameraController in SceneCanvas.
   useEffect(() => {
     const base = curveRef.current;
     smoothScale.current = base.scaleBase;
     smoothY.current     = base.yBase;
-    const g = groupRef.current;
-    if (g) {
-      g.scale.setScalar(base.scaleBase * sizeMultRef.current);
-      g.position.set(0, base.yBase, 0);
-    }
   }, [variant, curveRef]);
 
   useFrame((_, delta) => {
@@ -171,12 +190,24 @@ function ZoomDrivenGroup({
     smoothScale.current = THREE.MathUtils.damp(smoothScale.current, scale, DAMP_SCALE, delta);
     smoothY.current     = THREE.MathUtils.damp(smoothY.current,     y,     DAMP_Y,     delta);
 
+    const intro = introRef.current;
+    const INTRO_DURATION = 1.4;
+    if (intro.active) {
+      intro.t = Math.min(1, intro.t + delta / INTRO_DURATION);
+      const e = 1 - Math.pow(1 - intro.t, 3);
+      intro.rot = (1 - e) * Math.PI * 1.5;
+      if (intro.t >= 1) {
+        intro.active = false;
+        intro.rot    = 0;
+      }
+    }
+
     const g = groupRef.current;
     if (g) {
       g.scale.setScalar(smoothScale.current * sizeMultRef.current);
-      g.position.set(0, smoothY.current, 0);
+      g.position.set(0, smoothY.current + mobileYOffset, 0);
+      g.rotation.y = intro.rot;
     }
-
   });
 
   return <group ref={groupRef}>{children}</group>;
@@ -220,17 +251,27 @@ function MetalPart({
 function StonePart({ url, config }: { url: string; config: StoneMaterialConfig }) {
   const { scene } = useGLTF(url);
   const cloned = useMemo(() => scene.clone(true), [scene]);
-  useEffect(() => { applyToAllMeshes(cloned, createStoneMaterial(config)); }, [cloned, config]);
+  useEffect(() => {
+    const mat = createStoneMaterial(config);
+    cloned.traverse((child) => {
+      const mesh = child as THREE.Mesh;
+      if (!mesh.isMesh) return;
+      mesh.material = mat;
+      // Render gems after all opaque meshes — the transmission pass fires
+      // once at the end of the frame instead of mid-draw-order.
+      mesh.renderOrder = 1;
+    });
+  }, [cloned, config]);
   return <primitive object={cloned} />;
 }
 
 /** Fixed white/clear material for earring gems — not controlled by gem picker */
 const EARRING_GEM_CONFIG: StoneMaterialConfig = {
   color: "#f5f8fb",
-  transmission: 0.95,
+  transmission: 1.0,
   ior: 2.42,
   roughness: 0.0,
-  thickness: 1.0,
+  thickness: 3.0,
 };
 
 export default function ProductModel({
@@ -246,70 +287,28 @@ export default function ProductModel({
   gemPositionLeft,
   gemPositionRight,
 }: ProductModelProps) {
-
-  // ─── Metal ────────────────────────────────────────────────────────────────
-  const defaults = getMetalConfig(null);
-  const [metalControls, setMetal] = useControls("Metal", () => ({
-    color:              { value: defaults.color },
-    metalness:          { value: defaults.metalness,          min: 0, max: 1, step: 0.01 },
-    roughness:          { value: defaults.roughness,          min: 0, max: 1, step: 0.01 },
-    envMapIntensity:    { value: defaults.envMapIntensity,    min: 0, max: 5, step: 0.05 },
-    clearcoat:          { value: defaults.clearcoat,          min: 0, max: 1, step: 0.01 },
-    clearcoatRoughness: { value: defaults.clearcoatRoughness, min: 0, max: 1, step: 0.01 },
-    reflectivity:       { value: defaults.reflectivity,       min: 0, max: 1, step: 0.01 },
-  }));
-  useEffect(() => { setMetal(getMetalConfig(finish)); }, [finish, setMetal]);
-
-  // ─── Stone ────────────────────────────────────────────────────────────────
-  const stoneDefaults = getStoneConfig(null);
-  const [stoneControls, setStone] = useControls("Stone", () => ({
-    color:        { value: stoneDefaults.color },
-    transmission: { value: stoneDefaults.transmission, min: 0, max: 1, step: 0.01 },
-    ior:          { value: stoneDefaults.ior,          min: 1, max: 3, step: 0.01 },
-    roughness:    { value: stoneDefaults.roughness,    min: 0, max: 1, step: 0.01 },
-    thickness:    { value: stoneDefaults.thickness,    min: 0, max: 2, step: 0.05 },
-  }));
-  useEffect(() => {
-    if (!gemstone) return;
-    const config = getStoneConfig(gemstone);
-    if (!config) return;
-    const { color, transmission, ior, roughness, thickness } = config;
-    setStone({ color, transmission, ior, roughness, thickness });
-  }, [gemstone, setStone]);
+  const metalConfig          = useMemo(() => getMetalConfig(finish),          [finish]);
+  const secondaryMetalConfig = useMemo(() => getSecondaryMetalConfig(finish), [finish]);
+  const stoneConfig          = useMemo(() => getStoneConfig(gemstone),        [gemstone]);
 
   // ─── Zoom curves ──────────────────────────────────────────────────────────
-  const ringCurveRef      = useRef<ZoomCurve>(RING_ZOOM);
-  const pendantOneCurveRef = useRef<ZoomCurve>(PENDANT_ONE_ZOOM);
-  const pendantTwoCurveRef = useRef<ZoomCurve>(PENDANT_TWO_ZOOM);
-  const earringsCurveRef   = useRef<ZoomCurve>(EARRINGS_ZOOM);
-  ringCurveRef.current       = RING_ZOOM;
-  pendantOneCurveRef.current = PENDANT_ONE_ZOOM;
-  pendantTwoCurveRef.current = PENDANT_TWO_ZOOM;
-  earringsCurveRef.current   = EARRINGS_ZOOM;
+  const ringCurveRef         = useRef<ZoomCurve>(RING_ZOOM);
+  const pendantOneCurveRef   = useRef<ZoomCurve>(PENDANT_ZOOM.pendantOne);
+  const pendantTwoCurveRef   = useRef<ZoomCurve>(PENDANT_ZOOM.pendantTwo);
+  const pendantMesmoCurveRef = useRef<ZoomCurve>(PENDANT_ZOOM.pendantMesmo);
+  const earringsCurveRef     = useRef<ZoomCurve>(EARRINGS_ZOOM);
+  ringCurveRef.current          = RING_ZOOM;
+  pendantOneCurveRef.current    = PENDANT_ZOOM.pendantOne;
+  pendantTwoCurveRef.current    = PENDANT_ZOOM.pendantTwo;
+  pendantMesmoCurveRef.current  = PENDANT_ZOOM.pendantMesmo;
+  earringsCurveRef.current      = EARRINGS_ZOOM;
 
   const activeCurveRef =
-    variant === "earrings"   ? earringsCurveRef   :
-    variant === "pendantTwo" ? pendantTwoCurveRef :
-    variant === "pendantOne" ? pendantOneCurveRef :
+    variant === "earrings"     ? earringsCurveRef     :
+    variant === "pendantMesmo" ? pendantMesmoCurveRef :
+    variant === "pendantTwo"   ? pendantTwoCurveRef   :
+    variant === "pendantOne"   ? pendantOneCurveRef   :
     ringCurveRef;
-
-  const metalConfig: MetalMaterialConfig = {
-    color:              metalControls.color,
-    metalness:          metalControls.metalness,
-    roughness:          metalControls.roughness,
-    envMapIntensity:    metalControls.envMapIntensity,
-    clearcoat:          metalControls.clearcoat,
-    clearcoatRoughness: metalControls.clearcoatRoughness,
-    reflectivity:       metalControls.reflectivity,
-  };
-
-  const stoneConfig: StoneMaterialConfig = {
-    color:        stoneControls.color,
-    transmission: stoneControls.transmission,
-    ior:          stoneControls.ior,
-    roughness:    stoneControls.roughness,
-    thickness:    stoneControls.thickness,
-  };
 
   return (
     <ZoomDrivenGroup
@@ -353,11 +352,19 @@ export default function ProductModel({
           <group rotation={[0, gemPosition.x * Math.PI * 0.6, 0]}>
             {/* Inner group sits at band surface radius */}
             <group position={[0, gemPosition.y, 0]}>
-              <MetalPart url={VARIANT_MODELS.ringConcave.setting}  config={metalConfig} />
+              <MetalPart url={VARIANT_MODELS.ringConcave.setting}  config={secondaryMetalConfig} />
               <StonePart url={VARIANT_MODELS.ringConcave.gemstone} config={stoneConfig} />
             </group>
           </group>
         </>
+
+      ) : variant === "ringClassicNoGem" ? (
+        <MetalPart
+          url={VARIANT_MODELS.ringClassic.body}
+          config={metalConfig}
+          bumpMap={bumpMap}
+          colorTintMap={colorTintMap}
+        />
 
       ) : variant === "ringClassic" ? (
         <>
@@ -367,9 +374,17 @@ export default function ProductModel({
             bumpMap={bumpMap}
             colorTintMap={colorTintMap}
           />
-          <MetalPart url={VARIANT_MODELS.ringClassic.setting}  config={metalConfig} />
+          <MetalPart url={VARIANT_MODELS.ringClassic.setting}  config={secondaryMetalConfig} />
           <StonePart url={VARIANT_MODELS.ringClassic.gemstone} config={stoneConfig} />
         </>
+
+      ) : variant === "ringConcaveNoGem" ? (
+        <MetalPart
+          url={VARIANT_MODELS.ringConcave.body}
+          config={metalConfig}
+          bumpMap={bumpMap}
+          colorTintMap={colorTintMap}
+        />
 
       ) : variant === "pendantTwo" ? (
         // Pendant 2: Mini body + chain + low setting + low gemstone
@@ -380,9 +395,22 @@ export default function ProductModel({
             bumpMap={bumpMap}
             colorTintMap={colorTintMap}
           />
-          <MetalPart url={VARIANT_MODELS.pendantTwo.chain}   config={metalConfig} />
-          <MetalPart url={VARIANT_MODELS.pendantTwo.setting}  config={metalConfig} />
+          <MetalPart url={VARIANT_MODELS.pendantTwo.chain}   config={secondaryMetalConfig} />
+          <MetalPart url={VARIANT_MODELS.pendantTwo.setting}  config={secondaryMetalConfig} />
           <StonePart url={VARIANT_MODELS.pendantTwo.gemstone} config={stoneConfig} />
+        </>
+
+      ) : variant === "pendantMesmo" ? (
+        <>
+          <MetalPart
+            url={VARIANT_MODELS.pendantMesmo.body}
+            config={metalConfig}
+            bumpMap={bumpMap}
+            colorTintMap={colorTintMap}
+          />
+          <MetalPart url={VARIANT_MODELS.pendantMesmo.chain}   config={secondaryMetalConfig} />
+          <MetalPart url={VARIANT_MODELS.pendantMesmo.setting}  config={secondaryMetalConfig} />
+          <StonePart url={VARIANT_MODELS.pendantMesmo.gemstone} config={stoneConfig} />
         </>
 
       ) : (
@@ -394,9 +422,9 @@ export default function ProductModel({
             bumpMap={bumpMap}
             colorTintMap={colorTintMap}
           />
-          <MetalPart url={VARIANT_MODELS.pendantOne.chain}   config={metalConfig} />
-          <MetalPart url={VARIANT_MODELS.pendantOne.hook}    config={metalConfig} />
-          <MetalPart url={VARIANT_MODELS.pendantOne.setting}  config={metalConfig} />
+          <MetalPart url={VARIANT_MODELS.pendantOne.chain}   config={secondaryMetalConfig} />
+          <MetalPart url={VARIANT_MODELS.pendantOne.hook}    config={secondaryMetalConfig} />
+          <MetalPart url={VARIANT_MODELS.pendantOne.setting}  config={secondaryMetalConfig} />
           <StonePart url={VARIANT_MODELS.pendantOne.gemstone} config={stoneConfig} />
         </>
       )}
@@ -404,7 +432,10 @@ export default function ProductModel({
   );
 }
 
-// Preload assets that exist in /public/models/
+// ─── Preload strategy ─────────────────────────────────────────────────────────
+// Only Ring GLBs are preloaded at module scope — Ring is the default category
+// shown when the customiser first opens, so these are always needed immediately.
+// Pendant and earring assets are deferred until the user switches category.
 useGLTF.preload(VARIANT_MODELS.ringClassic.body);
 useGLTF.preload(VARIANT_MODELS.ringClassic.setting);
 useGLTF.preload(VARIANT_MODELS.ringClassic.gemstone);
@@ -412,16 +443,40 @@ useGLTF.preload(VARIANT_MODELS.ringConcave.body);
 useGLTF.preload(VARIANT_MODELS.ringConcave.setting);
 useGLTF.preload(VARIANT_MODELS.ringConcave.gemstone);
 
-useGLTF.preload(VARIANT_MODELS.pendantOne.body);
-useGLTF.preload(VARIANT_MODELS.pendantOne.chain);
-useGLTF.preload(VARIANT_MODELS.pendantOne.hook);
-useGLTF.preload(VARIANT_MODELS.pendantOne.setting);
-useGLTF.preload(VARIANT_MODELS.pendantOne.gemstone);
-useGLTF.preload(VARIANT_MODELS.pendantTwo.body);
-useGLTF.preload(VARIANT_MODELS.pendantTwo.chain);
-useGLTF.preload(VARIANT_MODELS.pendantTwo.setting);
-useGLTF.preload(VARIANT_MODELS.pendantTwo.gemstone);
-useGLTF.preload(VARIANT_MODELS.earrings.leftBody);
-useGLTF.preload(VARIANT_MODELS.earrings.rightBody);
-useGLTF.preload(VARIANT_MODELS.earrings.leftGem);
-useGLTF.preload(VARIANT_MODELS.earrings.rightGem);
+// Call this when the user selects a non-ring category so assets are warming
+// in the background before the model actually mounts.
+const preloadedCategories = new Set<string>(["ring"]);
+
+export function preloadCategory(category: import("@/lib/customiser/types").ProductCategory): void {
+  if (preloadedCategories.has(category)) return;
+  preloadedCategories.add(category);
+
+  const defer = typeof requestIdleCallback !== "undefined"
+    ? (fn: () => void) => requestIdleCallback(fn, { timeout: 2000 })
+    : (fn: () => void) => setTimeout(fn, 100);
+
+  if (category === "pendant") {
+    defer(() => {
+      useGLTF.preload(VARIANT_MODELS.pendantOne.body);
+      useGLTF.preload(VARIANT_MODELS.pendantOne.chain);
+      useGLTF.preload(VARIANT_MODELS.pendantOne.hook);
+      useGLTF.preload(VARIANT_MODELS.pendantOne.setting);
+      useGLTF.preload(VARIANT_MODELS.pendantOne.gemstone);
+      useGLTF.preload(VARIANT_MODELS.pendantTwo.body);
+      useGLTF.preload(VARIANT_MODELS.pendantTwo.chain);
+      useGLTF.preload(VARIANT_MODELS.pendantTwo.setting);
+      useGLTF.preload(VARIANT_MODELS.pendantTwo.gemstone);
+      useGLTF.preload(VARIANT_MODELS.pendantMesmo.body);
+      useGLTF.preload(VARIANT_MODELS.pendantMesmo.chain);
+      useGLTF.preload(VARIANT_MODELS.pendantMesmo.setting);
+      useGLTF.preload(VARIANT_MODELS.pendantMesmo.gemstone);
+    });
+  } else if (category === "earrings") {
+    defer(() => {
+      useGLTF.preload(VARIANT_MODELS.earrings.leftBody);
+      useGLTF.preload(VARIANT_MODELS.earrings.rightBody);
+      useGLTF.preload(VARIANT_MODELS.earrings.leftGem);
+      useGLTF.preload(VARIANT_MODELS.earrings.rightGem);
+    });
+  }
+}

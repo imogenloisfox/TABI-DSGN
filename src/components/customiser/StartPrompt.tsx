@@ -1,5 +1,8 @@
 "use client";
 
+import VanishButton from "@/components/ui/VanishButton";
+import { CHROME_HEADER_FONT, CHROME_LABEL_FONT, chromePillCta } from "@/lib/chromeUi";
+
 interface StartPromptProps {
   onStart: () => void;
 }
@@ -8,24 +11,28 @@ export default function StartPrompt({ onStart }: StartPromptProps) {
   return (
     <div className="flex flex-col items-center gap-6 text-center">
       <div className="flex flex-col items-center gap-2">
-        <h1 className="font-script text-5xl md:text-7xl text-foreground leading-none">
+        <h1 className="font-script text-5xl leading-none text-foreground md:text-7xl">
           TABI
         </h1>
-        <p className="text-[10px] tracking-[0.3em] uppercase text-foreground font-mono">
-          Engraving Customiser
+        <p className="text-[10px] tracking-normal text-[#7a7a7a]" style={CHROME_LABEL_FONT}>
+          Engraving customiser
         </p>
       </div>
 
-      <p className="max-w-xs text-[10px] font-mono tracking-wide leading-relaxed text-foreground uppercase">
+      <p
+        className="max-w-xs text-[10px] leading-relaxed tracking-normal text-[#7a7a7a]"
+        style={CHROME_LABEL_FONT}
+      >
         Design your own personalised piece.
       </p>
 
-      <button
+      <VanishButton
         onClick={onStart}
-        className="btn-primary cursor-pointer border border-foreground bg-surface px-6 py-2 text-[11px] font-medium tracking-wide text-foreground"
+        className={chromePillCta}
+        style={CHROME_HEADER_FONT}
       >
-        Open Customiser
-      </button>
+        open customiser
+      </VanishButton>
     </div>
   );
 }

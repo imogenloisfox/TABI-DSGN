@@ -23,6 +23,10 @@ interface PreviewStageProps {
   gemPositionRight:   GemPosition;
   onCaptureReady?:    ((handle: SceneCanvasHandle | null) => void) | null;
   cameraResetSignal?: number;
+  /** Incremented after sidebar chrome changes; used to resync WebGL once CSS width transition finishes. */
+  previewLayoutEpoch?: number;
+  /** Height of fixed left chrome stack — forwarded to PreviewShopPills for dynamic top offset. */
+  leftChromeStackPx?: number;
 }
 
 export default function PreviewStage({
@@ -38,9 +42,11 @@ export default function PreviewStage({
   gemPositionRight,
   onCaptureReady,
   cameraResetSignal,
+  previewLayoutEpoch = 0,
+  leftChromeStackPx,
 }: PreviewStageProps) {
   return (
-    <div className="relative h-full w-full bg-background">
+    <div className="relative h-full min-h-0 w-full min-w-0 bg-[#e9e9e9]">
       <SceneCanvas
         variant={variant}
         finish={finish}
@@ -54,6 +60,8 @@ export default function PreviewStage({
         gemPositionRight={gemPositionRight}
         onCaptureReady={onCaptureReady}
         cameraResetSignal={cameraResetSignal}
+        previewLayoutEpoch={previewLayoutEpoch}
+        leftChromeStackPx={leftChromeStackPx}
       />
 
       {!variant && (

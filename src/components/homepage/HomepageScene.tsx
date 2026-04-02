@@ -1,34 +1,92 @@
 "use client";
 
-import { Suspense, useEffect, useRef, useState } from "react";
+import {
+  Suspense,
+  useCallback,
+  useEffect,
+  useLayoutEffect,
+  useRef,
+  useState,
+  type RefObject,
+} from "react";
 import * as THREE from "three";
 import { Canvas, useFrame, useThree } from "@react-three/fiber";
 import { Html } from "@react-three/drei";
-import { RGBELoader } from "three/addons/loaders/RGBELoader.js";
+import { getEnvTexture } from "@/lib/envTextureCache";
 import { EffectComposer, DepthOfField } from "@react-three/postprocessing";
 import type { DepthOfFieldEffect } from "postprocessing";
-import { useControls } from "leva";
-import { buildShowcasePieces, pickUniqueGems } from "./showcaseConfig";
+import { buildShowcasePieces, pickUniqueGems, type ShowcasePieceConfig } from "./showcaseConfig";
 import ShowcasePiece, {
   type PieceMotionState,
   type MotionConfig,
   type ClickConfig,
 } from "./ShowcasePiece";
 import type { ProductCategory, ProductVariant } from "@/lib/customiser/types";
+import { CHROME_GREY, CHROME_HEADER_FONT } from "@/lib/chromeUi";
+import {
+  DevFpsMetricsCollector,
+  DevFpsPillOverlay,
+  type DevFpsSample,
+} from "@/components/preview/DevFpsSessionChrome";
+import PreviewOnlinePill from "@/components/preview/PreviewOnlinePill";
+import LobbyClickParticles from "./LobbyClickParticles";
+
+// ─── MOBILE HOMEPAGE TUNING — edit these values to adjust the scene ─────────
+export const MOBILE_SCENE_CONFIG = {
+  /** Increase to make pieces bigger, decrease to make smaller */
+  scale: 0.9,
+  /** Decrease to bring pieces closer to camera, increase to push back */
+  posZ:  6.0,
+};
+
+/** Compute the resting world-position of a piece at t=0 (no offsets). */
+function initialPiecePosition(cfg: ShowcasePieceConfig): { x: number; y: number; z: number } {
+  return {
+    x: cfg.orbitCenterX + Math.sin(cfg.orbitPhaseX) * cfg.orbitRadiusX,
+    y: cfg.orbitCenterY + Math.cos(cfg.orbitPhaseY) * cfg.orbitRadiusY,
+    z: cfg.posZ,
+  };
+}
+
+/** Build motionStatesRef entries seeded at their correct t=0 positions. */
+function buildInitialMotionStates(pieces: ShowcasePieceConfig[]): PieceMotionState[] {
+  return pieces.map((cfg) => {
+    const pos = initialPiecePosition(cfg);
+    return {
+      x: pos.x, y: pos.y, z: pos.z,
+      offsetX: 0, offsetY: 0, offsetZ: 0,
+      colliderX: cfg.colliderX,
+      colliderY: cfg.colliderY,
+    };
+  });
+}
 
 // ─── HDRI environment ─────────────────────────────────────────────────────────
+
+/** Match marketing shell — pure white behind jewellery. */
+function ShowcaseSceneBackground() {
+  const { scene } = useThree();
+  useEffect(() => {
+    const prev = scene.background;
+    const c = new THREE.Color("#e9e9e9");
+    scene.background = c;
+    return () => {
+      if (scene.background === c) scene.background = prev;
+    };
+  }, [scene]);
+  return null;
+}
 
 function FixedEnvironment() {
   const { gl, scene } = useThree();
   useEffect(() => {
     gl.toneMappingExposure = 1.4;
-    const pmrem = new THREE.PMREMGenerator(gl);
-    new RGBELoader().load("/hdri/studio_small_09_1k.hdr", (hdrTex) => {
-      const envTex = pmrem.fromEquirectangular(hdrTex).texture;
+    // Use module-level singleton cache — reuses the texture already loaded by
+    // the customiser scene (same HDRI path), skipping a redundant network fetch
+    // and PMREMGenerator pass.
+    getEnvTexture(gl, "/hdri/studio_small_09_1k.hdr").then((envTex) => {
       scene.environment = envTex;
       scene.environmentRotation.set(2.45, 0, 0);
-      hdrTex.dispose();
-      pmrem.dispose();
     });
     return () => { scene.environment = null; };
   }, [gl, scene]);
@@ -102,6 +160,23 @@ function SeparationSystem({
   return null;
 }
 
+// ─── Mobile camera — wider FOV so pieces spread across the narrow viewport ────
+
+function MobileCameraAdjust({ enabled, posZ }: { enabled: boolean; posZ?: number }) {
+  const { camera } = useThree();
+  // useLayoutEffect so FOV/posZ are set BEFORE the first paint — prevents the
+  // visible snap from default 45°/z=7 to mobile 70°/z=6.
+  useLayoutEffect(() => {
+    if (!enabled) return;
+    if (camera instanceof THREE.PerspectiveCamera) {
+      camera.fov = 70;
+      if (posZ !== undefined) camera.position.z = posZ;
+      camera.updateProjectionMatrix();
+    }
+  }, [camera, enabled, posZ]);
+  return null;
+}
+
 // ─── Smart DOF — imperative uniform mutation, zero React overhead ─────────────
 // focusDistance = camera.z − piece.worldZ (camera is at z=7).
 // Directly writes to dofRef.current.cocMaterial.focusDistance each frame —
@@ -148,77 +223,76 @@ function SmartDOF({
 }
 
 // ─── Scene ────────────────────────────────────────────────────────────────────
-// All Leva controls live here so they're inside the Canvas/R3F context.
 // Shared mutable refs (motionStatesRef, clickSignalRef) are passed down to
 // each piece — no useState, no re-renders on interaction.
 
+/** After the floating scene graph commits, wait two frames so the first GL draw can land. */
+function ExperienceReadyGate({ onReady }: { onReady: () => void }) {
+  const fired = useRef(false);
+  useLayoutEffect(() => {
+    if (fired.current) return;
+    fired.current = true;
+    let r2 = 0;
+    const r1 = requestAnimationFrame(() => {
+      r2 = requestAnimationFrame(() => onReady());
+    });
+    return () => {
+      cancelAnimationFrame(r1);
+      cancelAnimationFrame(r2);
+    };
+  }, [onReady]);
+  return null;
+}
+
 function Scene({
   onPieceClick,
+  showcaseGemEpoch,
+  onExperienceReady,
 }: {
-  onPieceClick: (category: ProductCategory, variant: ProductVariant) => void;
+  onPieceClick:         (category: ProductCategory, variant: ProductVariant) => void;
+  showcaseGemEpoch:     number;
+  onExperienceReady?:   () => void;
 }) {
-  // ── Debug controls — always open so the tick box is immediately visible ────
-  const { showColliders } = useControls("Debug", {
-    showColliders: false,
-  });
+  const showColliders = false;
+  const isMobile      = typeof window !== "undefined" && window.innerWidth < 768;
 
-  // ── Global motion controls ─────────────────────────────────────────────────
-  const motionControls = useControls(
-    "Motion",
-    {
-      globalSpeed:          { value: 0.95, min: 0,   max: 3,   step: 0.05 },
-      spinMultiplier:       { value: 0.45, min: 0,   max: 3,   step: 0.05 },
-      rotCap:               { value: 1.00, min: 0,   max: 1.5, step: 0.05 },
-      collisionScale:       { value: 1.00, min: 0.3, max: 2.0, step: 0.05 },
-      collisionPadding:     { value: 0.20, min: 0,   max: 1.5, step: 0.05 },
-      separationStiffness:  { value: 1.00, min: 0,   max: 1,   step: 0.05 },
-      boundaryMargin:       { value: 1.50, min: 0,   max: 4,   step: 0.1  },
-    },
-    { collapsed: true },
-  );
+  const motionControls = {
+    globalSpeed:         0.95,
+    spinMultiplier:      0.45,
+    rotCap:              1.0,
+    collisionScale:      1.0,
+    collisionPadding:    0.2,
+    separationStiffness: 1.0,
+    // On mobile the viewport is narrow — reduce margin so pieces can spread out
+    boundaryMargin:      isMobile ? 0.4 : 1.5,
+  };
 
-  // ── Click orbit-shift controls ──────────────────────────────────────────────
-  const clickControls = useControls(
-    "Click Orbit Shift",
-    {
-      // springStrength: acceleration toward target — higher = snappier
-      springStrength: { value: 0.020, min: 0.001, max: 0.15, step: 0.001 },
-      // damping: 0 = endless oscillation, 0.5+ = overdamped/sluggish
-      damping:        { value: 0.40,  min: 0.01,  max: 0.5,  step: 0.01  },
-      // zSpread: ±depth range per click — main driver of DOF composition change
-      zSpread:        { value: 2.50,  min: 0,     max: 8,    step: 0.1   },
-      // Y-axis rotation kick on click
-      kickStrength:   { value: 3.00,  min: 0,     max: 3.0,  step: 0.05  },
-      // kickDecay: per-frame fade rate (0.90 = quick snap-back, 0.99 = slow fade)
-      kickDecay:      { value: 0.95,  min: 0.80,  max: 0.99, step: 0.005 },
-    },
-    { collapsed: true },
-  );
+  const clickControls = {
+    springStrength: 0.02,
+    damping:        0.4,
+    zSpread:        2.5,
+    kickStrength:   3.0,
+    kickDecay:      0.95,
+  };
 
-  // ── Depth of Field controls ────────────────────────────────────────────────
-  const dofControls = useControls(
-    "Depth of Field",
-    {
-      enabled:       true,
-      focusDistance: { value: 5.460, min: 0, max: 10,  step: 0.001 },
-      focalLength:   { value: 2.840, min: 0, max: 10,  step: 0.005 },
-      bokehScale:    { value: 3.5,   min: 0, max: 10,  step: 0.5   },
-    },
-    { collapsed: true },
-  );
+  const dofFocusDistance = 5.46;
+  const dofFocalLength   = 2.84;
+  const dofBokehScale    = 3.5;
 
   // ── Per-visit random gem assignment ───────────────────────────────────────
-  const [pieces] = useState(() => buildShowcasePieces(pickUniqueGems()));
+  const [pieces, setPieces] = useState(() => buildShowcasePieces(pickUniqueGems()));
 
   // ── Shared refs — stable across renders ────────────────────────────────────
-  const motionStatesRef = useRef<PieceMotionState[]>(
-    pieces.map((cfg) => ({
-      x: 0, y: 0, z: 0,
-      offsetX: 0, offsetY: 0, offsetZ: 0,
-      colliderX: cfg.colliderX,
-      colliderY: cfg.colliderY,
-    })),
-  );
+  // Seed at correct t=0 positions so the separation system never acts on 0,0,0 origins.
+  const motionStatesRef = useRef<PieceMotionState[]>(buildInitialMotionStates(pieces));
+
+  // Re-roll gems when App bumps `showcaseGemEpoch` (back from customiser); skip 0 on first paint.
+  useEffect(() => {
+    if (showcaseGemEpoch === 0) return;
+    const next = buildShowcasePieces(pickUniqueGems());
+    motionStatesRef.current = buildInitialMotionStates(next);
+    setPieces(next);
+  }, [showcaseGemEpoch]);
 
   // Incrementing this ref tells every piece "a click happened" without
   // triggering a React re-render.
@@ -245,7 +319,10 @@ function Scene({
 
   return (
     <>
+      <ShowcaseSceneBackground />
       <FixedEnvironment />
+      {/* Widen FOV on mobile so pieces spread across the narrow portrait viewport */}
+      <MobileCameraAdjust enabled={isMobile} posZ={MOBILE_SCENE_CONFIG.posZ} />
 
       <SeparationSystem
         motionStatesRef={motionStatesRef}
@@ -264,48 +341,134 @@ function Scene({
         <meshBasicMaterial />
       </mesh>
 
-      {pieces.map((config, i) => (
-        <ShowcasePiece
-          key={config.id}
-          config={config}
-          index={i}
-          motionStatesRef={motionStatesRef}
-          clickSignalRef={clickSignalRef}
-          hoveredZRef={hoveredZRef}
-          motion={motion}
-          clickConfig={clickConfig}
-          showColliders={showColliders}
-          onClick={(category, variant) => {
-            clickSignalRef.current++;
-            onPieceClick(category, variant);
-          }}
-        />
-      ))}
+      {/* Scale down on mobile so pieces never dominate the narrow screen */}
+      <group scale={isMobile ? MOBILE_SCENE_CONFIG.scale : 1}>
+        {pieces.map((config, i) => (
+          <ShowcasePiece
+            key={config.id}
+            config={config}
+            index={i}
+            motionStatesRef={motionStatesRef}
+            clickSignalRef={clickSignalRef}
+            hoveredZRef={hoveredZRef}
+            motion={motion}
+            clickConfig={clickConfig}
+            showColliders={showColliders}
+            onClick={(category, variant) => {
+              clickSignalRef.current++;
+              onPieceClick(category, variant);
+            }}
+          />
+        ))}
+      </group>
 
-      {dofControls.enabled && (
+      {/* DOF: static on mobile (same desktop defaults, max height); dynamic hover-tracking on desktop */}
+      {isMobile ? (
+        <EffectComposer>
+          <DepthOfField
+            focusDistance={dofFocusDistance}
+            focalLength={dofFocalLength}
+            bokehScale={dofBokehScale}
+            height={1000}
+          />
+        </EffectComposer>
+      ) : (
         <SmartDOF
           hoveredZRef={hoveredZRef}
-          restFocusDist={dofControls.focusDistance}
-          focalLength={dofControls.focalLength}
-          bokehScale={dofControls.bokehScale}
+          restFocusDist={dofFocusDistance}
+          focalLength={dofFocalLength}
+          bokehScale={dofBokehScale}
         />
       )}
+
+      {onExperienceReady ? <ExperienceReadyGate onReady={onExperienceReady} /> : null}
     </>
   );
 }
 
-// ─── Loading fallback ─────────────────────────────────────────────────────────
+/** Lobby loader opacity fade (ms) — keep in sync with CSS transition below. */
+const LOBBY_LOADER_FADE_MS = 550;
 
-function LoadingScreen() {
+type LobbyLoaderPhase = "on" | "fade" | "off";
+
+function LobbyLoaderOverlay({
+  phase,
+  onFadeComplete,
+}: {
+  phase:            LobbyLoaderPhase;
+  onFadeComplete:   () => void;
+}) {
+  if (phase === "off") return null;
+  const fading = phase === "fade";
   return (
-    <Html center>
-      <div className="flex flex-col items-center gap-3 select-none">
-        <span className="text-[12px] font-medium tracking-[0.3em] uppercase text-foreground/60">
-          TABI DSGN
+    <Html transform pointerEvents="none">
+      <div
+        className={`flex h-full w-full items-center justify-center select-none transition-opacity ease-out ${
+          fading ? "opacity-0" : "opacity-100"
+        }`}
+        style={{ transitionDuration: `${LOBBY_LOADER_FADE_MS}ms` }}
+        onTransitionEnd={(e) => {
+          if (e.propertyName === "opacity" && fading) onFadeComplete();
+        }}
+      >
+        <span
+          className="homepage-loading-pulse inline-block cursor-default text-[13.9px] tracking-[-0.3px] lowercase"
+          style={{ ...CHROME_HEADER_FONT, color: CHROME_GREY, fontSize: "13.9px" }}
+        >
+          tabi dsgn
         </span>
-        <div className="h-px w-12 bg-border/60 animate-pulse" />
       </div>
     </Html>
+  );
+}
+
+/**
+ * Full-viewport lobby: loader stays up until the scene commits, then fades out.
+ * Suspense fallback is null — the overlay covers the load; replacing fallback cannot animate.
+ */
+function LobbyEntrance({
+  onPieceClick,
+  showcaseGemEpoch,
+  devFpsSampleRef,
+  onSceneReady,
+}: {
+  onPieceClick:     (category: ProductCategory, variant: ProductVariant) => void;
+  showcaseGemEpoch: number;
+  devFpsSampleRef?: RefObject<(sample: DevFpsSample) => void> | null;
+  /** Fired once when ExperienceReadyGate confirms the first GL draw has landed. */
+  onSceneReady?:    () => void;
+}) {
+  const [phase, setPhase] = useState<LobbyLoaderPhase>("on");
+  const fadeStartedRef = useRef(false);
+
+  const beginFadeOut = useCallback(() => {
+    if (fadeStartedRef.current) return;
+    fadeStartedRef.current = true;
+    onSceneReady?.();
+    setPhase("fade");
+  }, [onSceneReady]);
+
+  const onFadeComplete = useCallback(() => {
+    setPhase("off");
+  }, []);
+
+  useEffect(() => {
+    const t = window.setTimeout(beginFadeOut, 12000);
+    return () => window.clearTimeout(t);
+  }, [beginFadeOut]);
+
+  return (
+    <>
+      <Suspense fallback={null}>
+        <Scene
+          onPieceClick={onPieceClick}
+          showcaseGemEpoch={showcaseGemEpoch}
+          onExperienceReady={beginFadeOut}
+        />
+      </Suspense>
+      {devFpsSampleRef ? <DevFpsMetricsCollector onSampleRef={devFpsSampleRef} /> : null}
+      <LobbyLoaderOverlay phase={phase} onFadeComplete={onFadeComplete} />
+    </>
   );
 }
 
@@ -314,49 +477,59 @@ function LoadingScreen() {
 export default function HomepageScene({
   onPieceClick,
   exiting,
+  showcaseGemEpoch = 0,
 }: {
-  onPieceClick: (category: ProductCategory, variant: ProductVariant) => void;
-  exiting:      boolean;
+  onPieceClick:       (category: ProductCategory, variant: ProductVariant) => void;
+  exiting:            boolean;
+  showcaseGemEpoch?:  number;
 }) {
-  const [visible, setVisible] = useState(false);
+  const isDev = process.env.NODE_ENV === "development";
+  const lobbySurfaceRef = useRef<HTMLDivElement>(null);
 
-  useEffect(() => {
-    const id = requestAnimationFrame(() => setVisible(true));
-    return () => cancelAnimationFrame(id);
-  }, []);
+  // Hide the entire scene until ExperienceReadyGate fires (2 rAFs after scene
+  // commit inside the Canvas). This guarantees the first GL draw has landed and
+  // MobileCameraAdjust (useLayoutEffect) has already set FOV/posZ — the user
+  // never sees the default-camera snap.
+  const [ready, setReady] = useState(false);
+
+  const [devFpsMetrics, setDevFpsMetrics] = useState<DevFpsSample>({
+    fps:    0,
+    msAvg:  0,
+    heapMb: null,
+  });
+  const devSampleRef = useRef<(sample: DevFpsSample) => void>(setDevFpsMetrics);
+  devSampleRef.current = setDevFpsMetrics;
 
   return (
     <div
-      className="h-dvh w-full transition-all duration-500 ease-out"
-      style={{
-        opacity:   exiting ? 0 : visible ? 1 : 0,
-        transform: exiting ? "scale(0.97)" : "scale(1)",
-      }}
+      className={`absolute inset-0 transition-opacity duration-500 ease-out${exiting ? " pointer-events-none" : ""}`}
+      style={{ opacity: exiting ? 0 : ready ? 1 : 0, transition: "opacity 0.4s ease" }}
     >
-      <div className="pointer-events-none absolute inset-x-0 top-8 z-10 flex justify-center">
-        <span className="text-[12px] font-medium tracking-[0.3em] uppercase text-foreground select-none">
-          TABI DSGN
-        </span>
+      <div ref={lobbySurfaceRef} className="absolute inset-0">
+        <Canvas
+          className="r3f-canvas-wrapper"
+          camera={{ fov: 45, position: [0, 0, 7], near: 0.01, far: 100 }}
+          // Cap DPR at 1 on low-end devices (< 4 cores); cap at 2 otherwise.
+          dpr={typeof navigator !== "undefined" && navigator.hardwareConcurrency < 4 ? 1 : [1, 2]}
+          gl={{
+            antialias:           true,
+            toneMapping:         THREE.ACESFilmicToneMapping,
+            toneMappingExposure: 1.4,
+          }}
+        >
+          <LobbyEntrance
+            onPieceClick={onPieceClick}
+            showcaseGemEpoch={showcaseGemEpoch}
+            devFpsSampleRef={isDev ? devSampleRef : undefined}
+            onSceneReady={() => setReady(true)}
+          />
+        </Canvas>
+        <div className="pointer-events-auto fixed bottom-4 right-4 z-[100] flex flex-row items-center gap-0">
+          <PreviewOnlinePill />
+          {isDev ? <DevFpsPillOverlay metrics={devFpsMetrics} /> : null}
+        </div>
+        <LobbyClickParticles surfaceRef={lobbySurfaceRef} active={!exiting} />
       </div>
-
-      <div className="pointer-events-none absolute inset-x-0 bottom-8 z-10 flex justify-center">
-        <span className="text-[8px] font-medium tracking-[0.3em] uppercase text-foreground select-none">
-          CLICK ON A PIECE TO START CUSTOMISING
-        </span>
-      </div>
-
-      <Canvas
-        camera={{ fov: 45, position: [0, 0, 7], near: 0.01, far: 100 }}
-        gl={{
-          antialias:           true,
-          toneMapping:         THREE.ACESFilmicToneMapping,
-          toneMappingExposure: 1.4,
-        }}
-      >
-        <Suspense fallback={<LoadingScreen />}>
-          <Scene onPieceClick={onPieceClick} />
-        </Suspense>
-      </Canvas>
     </div>
   );
 }

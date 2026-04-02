@@ -1,19 +1,11 @@
 /**
- * TABI DSGN — Multi-page PDF Spec Sheet Generator
+ * TABI DSGN — PDF export (Save)
  *
- * Page 1 — Customer Preview
- *   Header with order reference + date/time
- *   Three camera captures (left / front / right) side-by-side
- *   Right column: full order summary including engraving measurements
+ * Page 1 — Design preview (when `heroFrontView` is set)
+ *   Large face-on render at current orbit zoom (matches live preview scale).
  *
- * Page 2 — Flat Technical Diagram
- *   Proportional band/earring diagram drawn at real mm dimensions
- *   Red dimension annotations: band W×H, engraving block W×H,
- *   top/bottom/left/right gaps in mm, individual letter cap height
- *
- * Page 3 — Production Bump Map
- *   Full-resolution bump map PNG with mm ruler
- *   Scale factor note for rings
+ * Page 2 (or 1 if no hero) — Specification sheet
+ *   Three camera captures (left / front / right) + bump preview + order summary.
  *
  * ─── Update BAND_DIMENSIONS below when real measurements change ──────────────
  */
@@ -66,11 +58,14 @@ export const RING_SIZE_DATA: Record<string, {
 // ─── Variant display names ────────────────────────────────────────────────────
 
 const VARIANT_LABELS: Record<string, string> = {
-  ringClassic:  "Ring — Classic Band",
-  ringConcave:  "Ring — Concave Band",
-  pendantOne:   "Pendant — Classic",
-  pendantTwo:   "Pendant — Mini",
-  earrings:     "Earrings",
+  ringClassic:      "MOI",
+  ringConcave:      "SUI",
+  ringClassicNoGem: "MEUS",
+  ringConcaveNoGem: "EGO (no stone)",
+  pendantOne:       "SOI",
+  pendantTwo:       "MOMENT",
+  pendantMesmo:     "MESMO",
+  earrings:         "Earrings",
 };
 
 // ─── Date / slug helpers ──────────────────────────────────────────────────────
@@ -182,19 +177,19 @@ function dimArrowH(
   label:  string,
   color = "#cc2200",
 ) {
-  const AH = 6;
+  const AH = 3;
   ctx.save();
   ctx.strokeStyle = color;
   ctx.fillStyle   = color;
-  ctx.lineWidth   = 1.5;
+  ctx.lineWidth   = 0.75;
 
   ctx.beginPath(); ctx.moveTo(x1, y); ctx.lineTo(x2, y); ctx.stroke();
   // Arrowheads
   ctx.beginPath(); ctx.moveTo(x1, y); ctx.lineTo(x1+AH, y-AH/2); ctx.lineTo(x1+AH, y+AH/2); ctx.closePath(); ctx.fill();
   ctx.beginPath(); ctx.moveTo(x2, y); ctx.lineTo(x2-AH, y-AH/2); ctx.lineTo(x2-AH, y+AH/2); ctx.closePath(); ctx.fill();
 
-  ctx.font         = "bold 18px 'SF Mono', 'Courier New', monospace";
-  ctx.fillStyle    = color;
+  ctx.font         = 'bold 18px "Geist Mono", sans-serif';
+  ctx.fillStyle    = "#000000";
   ctx.textAlign    = "center";
   ctx.textBaseline = "top";
   ctx.fillText(label, (x1 + x2) / 2, y + 6);
@@ -210,11 +205,11 @@ function dimArrowV(
   label:  string,
   color = "#cc2200",
 ) {
-  const AH = 6;
+  const AH = 3;
   ctx.save();
   ctx.strokeStyle = color;
   ctx.fillStyle   = color;
-  ctx.lineWidth   = 1.5;
+  ctx.lineWidth   = 0.75;
 
   ctx.beginPath(); ctx.moveTo(x, y1); ctx.lineTo(x, y2); ctx.stroke();
   ctx.beginPath(); ctx.moveTo(x, y1); ctx.lineTo(x-AH/2, y1+AH); ctx.lineTo(x+AH/2, y1+AH); ctx.closePath(); ctx.fill();
@@ -223,8 +218,8 @@ function dimArrowV(
   ctx.save();
   ctx.translate(x + 9, (y1 + y2) / 2);
   ctx.rotate(Math.PI / 2);
-  ctx.font         = "bold 18px 'SF Mono', 'Courier New', monospace";
-  ctx.fillStyle    = color;
+  ctx.font         = 'bold 18px "Geist Mono", sans-serif';
+  ctx.fillStyle    = "#000000";
   ctx.textAlign    = "center";
   ctx.textBaseline = "bottom";
   ctx.fillText(label, 0, 0);
@@ -279,7 +274,7 @@ function createDiagramCanvas(
   canvas.height = CH;
   const ctx     = canvas.getContext("2d")!;
 
-  ctx.fillStyle = "#e6e6e6";
+  ctx.fillStyle = "#f9f9f9";
   ctx.fillRect(0, 0, CW, CH);
 
   const bandX = MARGIN;
@@ -294,17 +289,17 @@ function createDiagramCanvas(
       : [{ x: bandX, eng: leftEng, sz: safeZoneLeft }];
 
   for (const { x: rx, eng, sz, label } of rects) {
-    // ── Silver band rectangle ─────────────────────────────────────────────────
-    ctx.fillStyle   = "#ebebeb";
-    ctx.strokeStyle = "#bbbbbb";
-    ctx.lineWidth   = 2;
+    // ── Band rectangle (match app surface + line colour) ─────────────────────
+    ctx.fillStyle   = "#f9f9f9";
+    ctx.strokeStyle = "#d9d9da";
+    ctx.lineWidth   = 1;
     ctx.fillRect(rx, bandY, bandPxW, bandPxH);
     ctx.strokeRect(rx, bandY, bandPxW, bandPxH);
 
     // Side label (earrings only)
     if (label) {
-      ctx.fillStyle    = "#999999";
-      ctx.font         = "16px 'SF Mono', 'Courier New', monospace";
+      ctx.fillStyle    = "#000000";
+      ctx.font         = '16px "Geist Mono", sans-serif';
       ctx.textAlign    = "center";
       ctx.textBaseline = "bottom";
       ctx.fillText(label, rx + bandPxW / 2, bandY - 8);
@@ -326,8 +321,8 @@ function createDiagramCanvas(
       // Thick dashed green border
       ctx.save();
       ctx.strokeStyle = "#009944";
-      ctx.lineWidth   = 3;
-      ctx.setLineDash([12, 7]);
+      ctx.lineWidth   = 1.5;
+      ctx.setLineDash([6, 3.5]);
       ctx.strokeRect(szX, szY, szW, szH);
       ctx.setLineDash([]);
       ctx.restore();
@@ -342,17 +337,17 @@ function createDiagramCanvas(
 
       // Labels outside the band so they're always legible over engraving text
       ctx.save();
-      ctx.fillStyle    = "#009944";
+      ctx.fillStyle    = "#000000";
       ctx.textAlign    = "center";
       // "SAFE ENGRAVING ZONE" + size above the green box (in the margin area)
-      ctx.font         = "bold 16px 'SF Mono', 'Courier New', monospace";
+      ctx.font         = 'bold 16px "Geist Mono", sans-serif';
       ctx.textBaseline = "bottom";
       ctx.fillText(
         `SAFE ENGRAVING ZONE — ${safeWmm} × ${safeHmm}mm`,
         szX + szW / 2, szY - 10,
       );
       // Margin distances below the band
-      ctx.font         = "14px 'SF Mono', 'Courier New', monospace";
+      ctx.font         = '14px "Geist Mono", sans-serif';
       ctx.textBaseline = "top";
       ctx.fillText(
         `T: ${szTopMM}mm  ·  B: ${szBottomMM}mm  ·  L: ${szLeftMM}mm  ·  R: ${szRightMM}mm`,
@@ -379,7 +374,7 @@ function createDiagramCanvas(
       ctx.translate(cx, cy);
       ctx.rotate((diagRot * Math.PI) / 180);
       ctx.font         = `${fs}px 'ClassiqueScript', 'Didot', serif`;
-      ctx.fillStyle    = "#222222";
+      ctx.fillStyle    = "#000000";
       ctx.textAlign    = "center";
       ctx.textBaseline = "middle";
       ctx.globalAlpha  = 0.9;
@@ -402,15 +397,15 @@ function createDiagramCanvas(
     `${realHeightMM}mm`, "#cc2200");
 
   // ── Title / legend ────────────────────────────────────────────────────────
-  ctx.fillStyle    = "#555555";
-  ctx.font         = "bold 22px 'Helvetica Neue', Arial, sans-serif";
+  ctx.fillStyle    = "#000000";
+  ctx.font         = 'bold 22px "Geist Mono", sans-serif';
   ctx.textAlign    = "left";
   ctx.textBaseline = "top";
   ctx.fillText("TECHNICAL FLAT PLAN", 24, 24);
-  ctx.font      = "13px 'SF Mono', monospace";
-  ctx.fillStyle = "#888888";
+  ctx.font      = '13px "Geist Mono", sans-serif';
+  ctx.fillStyle = "#000000";
   ctx.fillText(
-    "Grey = full band  ·  Green = safe engraving zone  ·  Red = band dimensions  ·  All measurements in mm",
+    "Pale panel = full band  ·  Green = safe engraving zone  ·  Red = band dimensions  ·  All measurements in mm",
     24, 52,
   );
 
@@ -454,13 +449,15 @@ function createBumpPageCanvas(
   canvas.height = OUT_H;
   const ctx = canvas.getContext("2d")!;
 
-  ctx.fillStyle = "#e6e6e6";
+  ctx.fillStyle = "#f9f9f9";
   ctx.fillRect(0, 0, OUT_W, OUT_H);
 
   // Rings and pendants engrave with rotation=-180° (texture is inside-out for 3D mapping).
   // Flip 180° here so the bump map reads right-side-up for the engraver.
   const needsFlip = variant === "ringClassic" || variant === "ringConcave"
-                 || variant === "pendantOne"  || variant === "pendantTwo";
+                 || variant === "ringClassicNoGem" || variant === "ringConcaveNoGem"
+                 || variant === "pendantOne"  || variant === "pendantTwo"
+                 || variant === "pendantMesmo";
 
   /** Draw a canvas image, optionally flipped 180° */
   function drawBump(src: HTMLCanvasElement, x: number, y: number, w: number, h: number) {
@@ -483,15 +480,15 @@ function createBumpPageCanvas(
       drawBump(bumpCanvasRight,  x2, PAD, imgW, imgH);
 
       // Labels
-      ctx.fillStyle    = "#888888";
-      ctx.font         = "18px 'SF Mono', monospace";
+      ctx.fillStyle    = "#000000";
+      ctx.font         = '18px "Geist Mono", sans-serif';
       ctx.textAlign    = "center";
       ctx.textBaseline = "bottom";
       ctx.fillText("LEFT",  x1 + imgW / 2, PAD - 6);
       ctx.fillText("RIGHT", x2 + imgW / 2, PAD - 6);
 
       // Borders
-      ctx.strokeStyle = "#dddddd"; ctx.lineWidth = 1;
+      ctx.strokeStyle = "#d9d9da"; ctx.lineWidth = 0.5;
       ctx.strokeRect(x1 - 1, PAD - 1, imgW + 2, imgH + 2);
       ctx.strokeRect(x2 - 1, PAD - 1, imgW + 2, imgH + 2);
 
@@ -499,16 +496,17 @@ function createBumpPageCanvas(
         BAND_DIMENSIONS.earring_left.heightMM, RULER_H - 20);
     } else {
       drawBump(bumpCanvas, PAD, PAD, imgW, imgH);
-      ctx.strokeStyle = "#dddddd"; ctx.lineWidth = 1;
+      ctx.strokeStyle = "#d9d9da"; ctx.lineWidth = 0.5;
       ctx.strokeRect(PAD - 1, PAD - 1, imgW + 2, imgH + 2);
 
       const isPendantLow = variant === "pendantTwo";
-      const isRing       = variant === "ringClassic" || variant === "ringConcave";
-      const isPendant    = variant === "pendantOne";
+      const isRing       = variant === "ringClassic" || variant === "ringConcave"
+        || variant === "ringClassicNoGem" || variant === "ringConcaveNoGem";
+      const isPendant    = variant === "pendantOne" || variant === "pendantMesmo";
 
       if (isPendantLow) {
-        ctx.fillStyle    = "#aaaaaa";
-        ctx.font         = "16px 'SF Mono', monospace";
+        ctx.fillStyle    = "#000000";
+        ctx.font         = '16px "Geist Mono", sans-serif';
         ctx.textAlign    = "left";
         ctx.textBaseline = "top";
         ctx.fillText("Dimensions TBC — ruler will be added once measurements are confirmed",
@@ -526,10 +524,10 @@ function createBumpPageCanvas(
       }
     }
   } else {
-    ctx.fillStyle    = "#f5f5f5";
+    ctx.fillStyle    = "#f9f9f9";
     ctx.fillRect(PAD, PAD, OUT_W - PAD * 2, imgH);
-    ctx.fillStyle    = "#aaaaaa";
-    ctx.font         = "20px Arial, sans-serif";
+    ctx.fillStyle    = "#000000";
+    ctx.font         = '20px "Geist Mono", sans-serif';
     ctx.textAlign    = "center";
     ctx.textBaseline = "middle";
     ctx.fillText("No bump map available", OUT_W / 2, PAD + imgH / 2);
@@ -556,19 +554,19 @@ function drawRuler(
   const minorH = rulerH * 0.22;
 
   ctx.save();
-  ctx.strokeStyle  = "#333333";
-  ctx.fillStyle    = "#333333";
-  ctx.font         = "14px 'SF Mono', 'Courier New', monospace";
+  ctx.strokeStyle  = "#d9d9da";
+  ctx.fillStyle    = "#000000";
+  ctx.font         = '14px "Geist Mono", sans-serif';
   ctx.textAlign    = "center";
   ctx.textBaseline = "top";
-  ctx.lineWidth    = 1.5;
+  ctx.lineWidth    = 0.75;
 
   ctx.beginPath(); ctx.moveTo(x, y); ctx.lineTo(x + widthPx, y); ctx.stroke();
 
   for (let mm = 0; mm <= totalMM; mm += minorInterval) {
     const px      = x + mm * pxPerMm;
     const isMajor = mm % tickInterval === 0;
-    ctx.lineWidth = isMajor ? 1.5 : 1;
+    ctx.lineWidth = isMajor ? 0.75 : 0.5;
     ctx.beginPath(); ctx.moveTo(px, y); ctx.lineTo(px, y + (isMajor ? majorH : minorH)); ctx.stroke();
     if (isMajor) ctx.fillText(`${mm}`, px, y + majorH + 3);
   }
@@ -592,25 +590,27 @@ function addPageHeader(
 ) {
   const H_BAR = 12; // mm
 
-  doc.setFillColor(17, 17, 17);
+  doc.setFillColor(217, 217, 218);
   doc.rect(0, 0, W, H_BAR, "F");
+
+  const headerInk = [0, 0, 0] as const;
 
   // Left: logo
   doc.setFont("helvetica", "bold");
   doc.setFontSize(8);
-  doc.setTextColor(230, 230, 230);
+  doc.setTextColor(headerInk[0], headerInk[1], headerInk[2]);
   doc.text("TABI DSGN", PAD, H_BAR / 2 + 1.5, { baseline: "middle" });
 
   // Center: page title
   doc.setFont("helvetica", "normal");
   doc.setFontSize(6.5);
-  doc.setTextColor(210, 210, 210);
+  doc.setTextColor(headerInk[0], headerInk[1], headerInk[2]);
   doc.text(pageTitle, W / 2, H_BAR / 2 + 1.5, { align: "center", baseline: "middle" });
 
   // Right: order ref + date + page
   doc.setFont("courier", "normal");
   doc.setFontSize(5.5);
-  doc.setTextColor(170, 170, 170);
+  doc.setTextColor(headerInk[0], headerInk[1], headerInk[2]);
   doc.text(
     `${orderRef}  ·  ${dateTimeStr}  ·  ${pageNum} / ${totalPages}`,
     W - PAD, H_BAR / 2 + 1.5,
@@ -618,8 +618,8 @@ function addPageHeader(
   );
 
   // Hairline rule
-  doc.setDrawColor(50, 50, 50);
-  doc.setLineWidth(0.2);
+  doc.setDrawColor(217, 217, 218);
+  doc.setLineWidth(0.1);
   doc.line(0, H_BAR, W, H_BAR);
 }
 
@@ -665,6 +665,12 @@ export interface ExportSpecSheetParams {
   engravingRightFontSize?: number;
   engravingRightRotation?: number;
   engravingRightSpacing?:  number;
+  /** Gem position offsets — ring/pendant uses gemPosition; earrings use left + right. */
+  gemPosition?:      { x: number; y: number };
+  gemPositionLeft?:  { x: number; y: number };
+  gemPositionRight?: { x: number; y: number };
+  /** High-res front (θ=0) PNG data URL for PDF page 1 — optional. */
+  heroFrontView: string | null;
   // Three-angle camera captures
   renderViews: { front: string; left: string; right: string } | null;
   // Bump map canvases
@@ -706,15 +712,19 @@ export async function exportSpecSheet(params: ExportSpecSheetParams): Promise<vo
     engravingRightFontSize,
     engravingRightRotation,
     engravingRightSpacing,
+    gemPosition,
+    gemPositionLeft,
+    gemPositionRight,
+    heroFrontView,
     renderViews,
     bumpCanvas,
     bumpCanvasRight,
     canvasTarget,
   } = params;
 
-  const isRing    = variant === "ringClassic" || variant === "ringConcave";
+  const isRing    = variant === "ringClassic" || variant === "ringConcave"
+    || variant === "ringClassicNoGem" || variant === "ringConcaveNoGem";
   const isEarring = variant === "earrings";
-  const isPendant = variant === "pendantOne" || variant === "pendantTwo";
 
   // Orientation: portrait for earrings, landscape for everything else
   const orientation = isEarring ? "portrait" : "landscape";
@@ -726,25 +736,43 @@ export async function exportSpecSheet(params: ExportSpecSheetParams): Promise<vo
 
   const orderRef   = makeOrderRef();
   const dateStr    = formatDateTime();
-  const TOTAL_PAGES = 1;
+  const hasHero    = Boolean(heroFrontView);
+  const TOTAL_PAGES = hasHero ? 2 : 1;
 
   const doc = new jsPDF({ orientation, unit: "mm", format: "a4" });
+
+  // ═══════════════════════════════════════════════════════════════════════════
+  // PAGE 1 — Large front view (optional)
+  // ═══════════════════════════════════════════════════════════════════════════
+  if (hasHero && heroFrontView) {
+    addPageHeader(doc, W, PAD, orderRef, 1, TOTAL_PAGES, "DESIGN — FRONT VIEW", dateStr);
+    const contentTop = HBAR + 8;
+    const heroMaxW = W - PAD * 2;
+    const heroMaxH = H - contentTop - PAD;
+    const heroDims = await imageDimensions(heroFrontView);
+    addImageFitted(
+      doc, heroFrontView,
+      heroDims.w, heroDims.h,
+      PAD, contentTop, heroMaxW, heroMaxH,
+    );
+    doc.addPage("a4", orientation);
+  }
 
   // ── Real-world dimensions for this variant ──────────────────────────────────
   let realWidthMM:  number | null = null;
   let realHeightMM: number | null = null;
 
-  if (variant === "ringClassic") {
+  if (variant === "ringClassic" || variant === "ringClassicNoGem") {
     realWidthMM  = ringSize && RING_SIZE_DATA[ringSize]
       ? RING_SIZE_DATA[ringSize].circumferenceMM
       : BAND_DIMENSIONS.ring_classic.circumferenceMM;
     realHeightMM = BAND_DIMENSIONS.ring_classic.heightMM;
-  } else if (variant === "ringConcave") {
+  } else if (variant === "ringConcave" || variant === "ringConcaveNoGem") {
     realWidthMM  = ringSize && RING_SIZE_DATA[ringSize]
       ? RING_SIZE_DATA[ringSize].circumferenceMM
       : BAND_DIMENSIONS.ring_concave.circumferenceMM;
     realHeightMM = BAND_DIMENSIONS.ring_concave.heightMM;
-  } else if (variant === "pendantOne") {
+  } else if (variant === "pendantOne" || variant === "pendantMesmo") {
     realWidthMM  = BAND_DIMENSIONS.pendant_classic.widthMM;
     realHeightMM = BAND_DIMENSIONS.pendant_classic.heightMM;
   } else if (variant === "pendantTwo") {
@@ -777,10 +805,11 @@ export async function exportSpecSheet(params: ExportSpecSheetParams): Promise<vo
   }
 
   // ═══════════════════════════════════════════════════════════════════════════
-  // PAGE 1 — Customer Preview
+  // Spec sheet page (page 2 if hero exists, else page 1)
   // ═══════════════════════════════════════════════════════════════════════════
-  addPageHeader(doc, W, PAD, orderRef, 1, TOTAL_PAGES,
-    "CUSTOMER PREVIEW — ENGRAVING SPECIFICATION", dateStr);
+  const specPageNum = hasHero ? 2 : 1;
+  addPageHeader(doc, W, PAD, orderRef, specPageNum, TOTAL_PAGES,
+    "SPECIFICATION — ENGRAVING & ORDER DETAIL", dateStr);
 
   const LEFT_COL_W  = orientation === "landscape" ? 182 : W - PAD * 2;
   const RIGHT_COL_X = orientation === "landscape" ? PAD + LEFT_COL_W + 5 : PAD;
@@ -788,8 +817,8 @@ export async function exportSpecSheet(params: ExportSpecSheetParams): Promise<vo
 
   // Vertical divider (landscape only)
   if (orientation === "landscape") {
-    doc.setDrawColor(220, 220, 220);
-    doc.setLineWidth(0.2);
+    doc.setDrawColor(217, 217, 218);
+    doc.setLineWidth(0.1);
     doc.line(PAD + LEFT_COL_W + 2, CONTENT_Y, PAD + LEFT_COL_W + 2, H - PAD);
   }
 
@@ -798,14 +827,14 @@ export async function exportSpecSheet(params: ExportSpecSheetParams): Promise<vo
   const captureLabel = (txt: string, cx: number, cy: number) => {
     doc.setFont("courier", "normal");
     doc.setFontSize(5);
-    doc.setTextColor(150, 150, 150);
+    doc.setTextColor(0, 0, 0);
     doc.text(txt.toUpperCase(), cx, cy, { align: "center" });
   };
 
   // Small "CUSTOMER PREVIEW" section header
   doc.setFont("helvetica", "normal");
   doc.setFontSize(5.5);
-  doc.setTextColor(170, 170, 170);
+  doc.setTextColor(0, 0, 0);
   doc.text("CUSTOMER PREVIEW", PAD, captureY + 3);
   captureY += 5;
 
@@ -833,19 +862,19 @@ export async function exportSpecSheet(params: ExportSpecSheetParams): Promise<vo
       const iy = captureY + (rowH - iH) / 2;
       doc.addImage(url, "PNG", ix, iy, imgW3, iH);
       // Thin border
-      doc.setDrawColor(220, 220, 220);
-      doc.setLineWidth(0.2);
+      doc.setDrawColor(217, 217, 218);
+      doc.setLineWidth(0.1);
       doc.rect(ix, iy, imgW3, iH);
       captureLabel(label, ix + imgW3 / 2, captureY + rowH + 3.5);
     }
     captureY += rowH + 6;
   } else {
     // Placeholder
-    doc.setFillColor(245, 245, 245);
+    doc.setFillColor(249, 249, 249);
     doc.rect(PAD, captureY, LEFT_COL_W, 50, "F");
     doc.setFont("helvetica", "normal");
     doc.setFontSize(8);
-    doc.setTextColor(170, 170, 170);
+    doc.setTextColor(0, 0, 0);
     doc.text("3D render unavailable", PAD + LEFT_COL_W / 2, captureY + 26, { align: "center" });
     captureY += 54;
   }
@@ -854,7 +883,7 @@ export async function exportSpecSheet(params: ExportSpecSheetParams): Promise<vo
   if (bumpCanvas) {
     doc.setFont("courier", "normal");
     doc.setFontSize(5.5);
-    doc.setTextColor(170, 170, 170);
+    doc.setTextColor(0, 0, 0);
     doc.text("ENGRAVING BUMP MAP — PRODUCTION FILE", PAD, captureY + 3);
     captureY += 6;
 
@@ -872,7 +901,7 @@ export async function exportSpecSheet(params: ExportSpecSheetParams): Promise<vo
 
     doc.setFont("helvetica", "normal");
     doc.setFontSize(5.5);
-    doc.setTextColor(100, 100, 100);
+    doc.setTextColor(0, 0, 0);
     doc.text("White = engrave  ·  Black = no engrave", PAD, captureY);
     captureY += 3.5;
 
@@ -882,7 +911,7 @@ export async function exportSpecSheet(params: ExportSpecSheetParams): Promise<vo
       const factor  = (selCirc / mCirc).toFixed(3);
       doc.setFont("courier", "normal");
       doc.setFontSize(5.5);
-      doc.setTextColor(17, 17, 17);
+      doc.setTextColor(0, 0, 0);
       doc.text(
         `Size M preview — scale ×${factor} for size ${ringSize} (${selCirc}mm circ).`,
         PAD, captureY,
@@ -898,7 +927,7 @@ export async function exportSpecSheet(params: ExportSpecSheetParams): Promise<vo
   function sLabel(text: string) {
     doc.setFont("courier", "normal");
     doc.setFontSize(5.5);
-    doc.setTextColor(160, 160, 160);
+    doc.setTextColor(0, 0, 0);
     doc.text(text.toUpperCase(), summaryX, sy);
     sy += 3.5;
   }
@@ -906,15 +935,15 @@ export async function exportSpecSheet(params: ExportSpecSheetParams): Promise<vo
   function sValue(text: string, bold = false, italic = false) {
     doc.setFont("helvetica", italic ? "italic" : bold ? "bold" : "normal");
     doc.setFontSize(8);
-    doc.setTextColor(17, 17, 17);
+    doc.setTextColor(0, 0, 0);
     const lines = doc.splitTextToSize(text, maxSW);
     doc.text(lines, summaryX, sy);
     sy += lines.length * 4.2 + 1;
   }
 
   function sDivider() {
-    doc.setDrawColor(230, 230, 230);
-    doc.setLineWidth(0.2);
+    doc.setDrawColor(217, 217, 218);
+    doc.setLineWidth(0.1);
     doc.line(summaryX, sy, summaryX + maxSW, sy);
     sy += 3;
   }
@@ -944,24 +973,36 @@ export async function exportSpecSheet(params: ExportSpecSheetParams): Promise<vo
     sDivider();
   }
 
+  if (!isEarring && gemPosition) {
+    sLabel("Stone Position");
+    sValue(`X ${gemPosition.x.toFixed(3)}  ·  Y ${gemPosition.y.toFixed(3)}`);
+    sDivider();
+  }
+  if (isEarring && (gemPositionLeft || gemPositionRight)) {
+    sLabel("Stone Position");
+    if (gemPositionLeft)  sValue(`Left  —  X ${gemPositionLeft.x.toFixed(3)}  ·  Y ${gemPositionLeft.y.toFixed(3)}`);
+    if (gemPositionRight) sValue(`Right  —  X ${gemPositionRight.x.toFixed(3)}  ·  Y ${gemPositionRight.y.toFixed(3)}`);
+    sDivider();
+  }
+
   sLabel("Engraving Text");
   const engLines = (engravingText || "(none)").split("\n");
   for (const line of engLines) {
     doc.setFont("helvetica", "italic");
     doc.setFontSize(9);
-    doc.setTextColor(17, 17, 17);
+    doc.setTextColor(0, 0, 0);
     doc.text(line || "(blank)", summaryX, sy);
     sy += 5;
   }
   if (isEarring && engravingRightText) {
     doc.setFont("courier", "normal");
     doc.setFontSize(5.5);
-    doc.setTextColor(140, 140, 140);
+    doc.setTextColor(0, 0, 0);
     doc.text("RIGHT:", summaryX, sy); sy += 3;
     for (const line of engravingRightText.split("\n")) {
       doc.setFont("helvetica", "italic");
       doc.setFontSize(9);
-      doc.setTextColor(17, 17, 17);
+      doc.setTextColor(0, 0, 0);
       doc.text(line || "(blank)", summaryX, sy);
       sy += 5;
     }
@@ -1012,7 +1053,7 @@ export async function exportSpecSheet(params: ExportSpecSheetParams): Promise<vo
     );
   } else if (variant === "pendantTwo") {
     sLabel("Scale Note");
-    sValue("Pendant Mini — dimensions TBC.");
+    sValue("MOMENT — dimensions TBC.");
   }
 
   // ── Footer ────────────────────────────────────────────────────────────────
@@ -1020,7 +1061,7 @@ export async function exportSpecSheet(params: ExportSpecSheetParams): Promise<vo
     const footerY = H - PAD / 2;
     doc.setFont("helvetica", "normal");
     doc.setFontSize(5.5);
-    doc.setTextColor(180, 180, 180);
+    doc.setTextColor(0, 0, 0);
     doc.text(
       "Engraving preview modelled at size M. Adjust proportionally for other sizes. For production use only.",
       W / 2, footerY, { align: "center" },
@@ -1030,6 +1071,6 @@ export async function exportSpecSheet(params: ExportSpecSheetParams): Promise<vo
   // ── Save PDF ──────────────────────────────────────────────────────────────
   const pieceSlug = (variant ?? "piece").replace(/([A-Z])/g, "-$1").toLowerCase().replace(/^-/, "");
   const sizeSlug  = isRing && ringSize ? `-${ringSize.toLowerCase()}` : "";
-  const filename  = `TABI-spec-${pieceSlug}${sizeSlug}-${fileDateSlug()}.pdf`;
+  const filename  = `TABI-save-${pieceSlug}${sizeSlug}-${fileDateSlug()}.pdf`;
   doc.save(filename);
 }

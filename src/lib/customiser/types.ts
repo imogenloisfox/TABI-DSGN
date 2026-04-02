@@ -3,13 +3,19 @@ export type ProductCategory = "ring" | "pendant" | "earrings";
 export type ProductVariant =
   | "ringClassic"
   | "ringConcave"
+  | "ringClassicNoGem"
+  | "ringConcaveNoGem"
   | "pendantOne"
   | "pendantTwo"
+  | "pendantMesmo"
   | "earrings";
 
-/** Checkout / summary: earrings have no centre stone SKU */
+/** Checkout / summary: no configurable centre stone for these */
 export function productUsesGemstone(variant: ProductVariant | null): boolean {
-  return variant !== null && variant !== "earrings";
+  if (variant === null) return false;
+  if (variant === "earrings") return false;
+  if (variant === "ringClassicNoGem" || variant === "ringConcaveNoGem") return false;
+  return true;
 }
 
 export type EngravingGroup = "ring" | "pendant";
@@ -25,9 +31,9 @@ export function variantEngravingGroup(variant: ProductVariant): EngravingGroup {
   return "ring";
 }
 
-/** All non-earring variants show the gemstone colour picker */
+/** Gemstone colour picker — not for earrings or pieces with no centre stone */
 export function variantUsesGemColour(variant: ProductVariant): boolean {
-  return variant !== "earrings";
+  return variant !== "earrings" && productUsesGemstone(variant);
 }
 
 /** Only the single concave ring gets Gem X/Y position sliders */
@@ -62,7 +68,16 @@ export const UK_RING_SIZES = ['F','G','H','I','J','K','L','M','N','O','P','Q','R
 export type UKRingSize = typeof UK_RING_SIZES[number];
 
 export function variantIsRing(variant: ProductVariant | null): boolean {
-  return variant === "ringClassic" || variant === "ringConcave";
+  return (
+    variant === "ringClassic"
+    || variant === "ringConcave"
+    || variant === "ringClassicNoGem"
+    || variant === "ringConcaveNoGem"
+  );
+}
+
+export function variantIsPendant(variant: ProductVariant | null): boolean {
+  return variant !== null && variant !== "earrings" && variant.startsWith("pendant");
 }
 
 export type AppView = "start" | "workspace";
@@ -143,6 +158,24 @@ export const ENGRAVING_SLIDER_CONFIG: Record<ProductVariant, EngravingSliderConf
     posX:    { min: -0.4, max: 0.4, default: 0.08 }, // 60%
     posY:    { min: -0.4, max: 0.4, default: 0.0  }, // 50%
     size:    { min: 0.2,  max: 0.92, default: 0.56 }, // 50%
+    spacing: { min: 0.3,  max: 0.7, default: 0.6  },
+  },
+  ringClassicNoGem: {
+    posX:    { min: -0.4, max: 0.4, default: 0.04 },
+    posY:    { min: -0.4, max: 0.4, default: 0.0  },
+    size:    { min: 0.2,  max: 1.2, default: 0.7  },
+    spacing: { min: 0.3,  max: 0.7, default: 0.6  },
+  },
+  ringConcaveNoGem: {
+    posX:    { min: -0.4, max: 0.4, default: 0.04 },
+    posY:    { min: -0.4, max: 0.4, default: 0.0  },
+    size:    { min: 0.2,  max: 1.2, default: 0.7  },
+    spacing: { min: 0.3,  max: 0.7, default: 0.6  },
+  },
+  pendantMesmo: {
+    posX:    { min: -0.4, max: 0.4, default: 0.08 },
+    posY:    { min: -0.4, max: 0.4, default: 0.0  },
+    size:    { min: 0.2,  max: 0.92, default: 0.56 },
     spacing: { min: 0.3,  max: 0.7, default: 0.6  },
   },
   earrings: {

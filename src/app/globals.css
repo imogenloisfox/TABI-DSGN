@@ -1,5 +1,14 @@
 @import "tailwindcss";
 
+/* Homepage / UI — ABC Diatype Bold (trial, single supplied weight) */
+@font-face {
+  font-family: "ABC Diatype";
+  src: url("/fonts/ABCDiatype-Bold-Trial.woff") format("woff");
+  font-weight: 700;
+  font-style: normal;
+  font-display: swap;
+}
+
 @font-face {
   font-family: "Classique Script";
   src: url("/fonts/ClassiqueScript.otf") format("opentype");
@@ -8,15 +17,50 @@
   font-display: swap;
 }
 
+/* UI sans/mono: Geist Mono — Regular + Bold */
+@font-face {
+  font-family: "Geist Mono";
+  src: url("/fonts/GeistMono-Regular.woff2") format("woff2");
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "Geist Mono";
+  src: url("/fonts/GeistMono-Regular.woff2") format("woff2");
+  font-weight: 500;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "Geist Mono";
+  src: url("/fonts/GeistMono-Bold.woff2") format("woff2");
+  font-weight: 600;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "Geist Mono";
+  src: url("/fonts/GeistMono-Bold.woff2") format("woff2");
+  font-weight: 700;
+  font-style: normal;
+  font-display: swap;
+}
+
 :root {
-  --background: #E6E6E6;
+  --background: #f9f9f9;
   --foreground: #000000;
-  --surface: #e6e6e6;
-  --border: #000000;
-  --border-strong: #000000;
-  --muted: #000000;
+  --surface: #f9f9f9;
+  --border: #7a7a7a;
+  --border-strong: #7a7a7a;
+  --muted: #7a7a7a;
   --accent: #000000;
   --font-script: "Classique Script", cursive;
+  /* Uniform caps / UI tracking — matches Export Spec Sheet button */
+  --letter-spacing-ui: 0.12em;
 }
 
 @theme inline {
@@ -27,32 +71,100 @@
   --color-border-strong: var(--border-strong);
   --color-muted: var(--muted);
   --color-accent: var(--accent);
-  --font-sans: "Inter", system-ui, -apple-system, sans-serif;
-  --font-mono: "SF Mono", "Fira Code", monospace;
+  --font-sans: "ABC Diatype", ui-sans-serif, system-ui, sans-serif;
+  --font-mono: "Geist Mono", ui-monospace, monospace;
 }
 
 body {
+  min-height: 100dvh;
   background: var(--background);
   color: var(--foreground);
   font-family: var(--font-sans);
   overflow: hidden;
 }
 
+/* R3F Canvas wrapper: inner WebGL canvas inherits font (e.g. for canvas text metrics / overlays). */
+.r3f-canvas-wrapper {
+  font-family: "ABC Diatype", ui-sans-serif, system-ui, sans-serif;
+}
+
+/* Remove inline-canvas baseline gap (can read as a hairline when layout reflows). */
+.r3f-canvas-wrapper canvas {
+  display: block;
+}
+
 .font-script {
   font-family: var(--font-script);
+  font-variation-settings: normal;
+  font-optical-sizing: auto;
 }
 
 @layer utilities {
+  .tracking-ui {
+    letter-spacing: var(--letter-spacing-ui);
+  }
+
   .btn-primary,
   .btn-toggle {
-    text-transform: uppercase;
-    letter-spacing: 0.08em;
+    letter-spacing: var(--letter-spacing-ui);
   }
-  .btn-primary:hover,
-  .btn-toggle:hover {
-    background-color: var(--color-foreground);
-    color: var(--color-surface);
+}
+
+/* Mobile customiser tab panel — opacity fade in */
+@keyframes mobileTabFadeIn {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+
+/* Engraving textarea — fake blinking cursor shown when unfocused */
+@keyframes engraving-cursor-blink {
+  0%, 49% { opacity: 1; }
+  50%, 100% { opacity: 0; }
+}
+.engraving-cursor-blink {
+  animation: engraving-cursor-blink 1s step-start infinite;
+}
+
+/* Homepage canvas Suspense — centred tabi dsgn label */
+@keyframes homepage-loading-pulse {
+  0%,
+  100% {
+    transform: scale(1);
   }
+  50% {
+    transform: scale(0.92);
+  }
+}
+.homepage-loading-pulse {
+  transform-origin: center center;
+  animation: homepage-loading-pulse 1.6s ease-in-out infinite;
+}
+
+/* OOB advisory: discrete flash #ffffff ↔ #8d8d8d (no cross-fade) */
+@keyframes oob-advisory-pulse {
+  0%,
+  49.99% {
+    background-color: #ffffff;
+    color: #7a7a7a;
+  }
+  50%,
+  99.99% {
+    background-color: #8d8d8d;
+    color: #ffffff;
+  }
+  100% {
+    background-color: #ffffff;
+    color: #7a7a7a;
+  }
+}
+
+.oob-advisory-pulse {
+  border: none;
+  border-width: 0;
+  border-style: none;
+  border-color: transparent;
+  border-image: none;
+  animation: oob-advisory-pulse 1s linear infinite;
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -61,5 +173,35 @@ body {
   *::after {
     animation-duration: 0.01ms !important;
     transition-duration: 0.01ms !important;
+  }
+
+  .oob-advisory-pulse {
+    animation: none !important;
+    border: none;
+    background-color: #ffffff;
+    color: #7a7a7a;
+  }
+}
+
+/* Hairline `border` (all sides) — unlayered so it wins over Tailwind’s 1px default. */
+.border {
+  border-width: 0.5px;
+}
+:where(.divide-y > :not(:last-child)) {
+  border-top-width: calc(0.5px * var(--tw-divide-y-reverse));
+  border-bottom-width: calc(0.5px * calc(1 - var(--tw-divide-y-reverse)));
+}
+:where(.divide-x > :not(:last-child)) {
+  border-inline-start-width: calc(0.5px * var(--tw-divide-x-reverse));
+  border-inline-end-width: calc(0.5px * calc(1 - var(--tw-divide-x-reverse)));
+}
+@media (width >= 48rem) {
+  :where(.md\:divide-x > :not(:last-child)) {
+    border-inline-start-width: calc(0.5px * var(--tw-divide-x-reverse));
+    border-inline-end-width: calc(0.5px * calc(1 - var(--tw-divide-x-reverse)));
+  }
+  :where(.md\:divide-y-0 > :not(:last-child)) {
+    border-top-width: calc(0px * var(--tw-divide-y-reverse));
+    border-bottom-width: calc(0px * calc(1 - var(--tw-divide-y-reverse)));
   }
 }

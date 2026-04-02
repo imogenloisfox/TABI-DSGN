@@ -7,7 +7,6 @@ import {
 import * as THREE from "three";
 import { useFrame, useThree } from "@react-three/fiber";
 import { useGLTF } from "@react-three/drei";
-import { useControls } from "leva";
 import {
   createMetalMaterial,
   createStoneMaterial,
@@ -158,6 +157,10 @@ function FloatingPiece({
   // Y-axis rotation kick — seeded on click, decays each frame back to oscillation
   const spinKickY = useRef(0);
 
+  // ── Opacity fade-in — start invisible, fade to 1 over 0.4s ─────────────
+  const fadeProgress = useRef(0);             // 0 → 1 over FADE_DURATION_S
+  const FADE_DURATION_S = 0.4;
+
   // ── Hover state — drives scale and speed, updated via pointer events ──────
   const isHovered     = useRef(false);
   const liveSpeedMult = useRef(1.0);          // lerps 1.0 ↔ 0.5 on hover
@@ -184,6 +187,22 @@ function FloatingPiece({
     const targetScale = pieceControls.scale * (isHovered.current ? 1.07 : 1.0);
     liveScale.current = THREE.MathUtils.lerp(liveScale.current, targetScale, 0.10);
     if (sg) sg.scale.setScalar(liveScale.current);
+
+    // ── Opacity fade-in — ramp 0→1 over FADE_DURATION_S ────────────────────
+    if (fadeProgress.current < 1) {
+      fadeProgress.current = Math.min(1, fadeProgress.current + delta / FADE_DURATION_S);
+      const opacity = fadeProgress.current;
+      g.traverse((child) => {
+        if ((child as THREE.Mesh).isMesh) {
+          const mat = (child as THREE.Mesh).material as THREE.MeshStandardMaterial;
+          if (mat) {
+            mat.transparent = opacity < 1;
+            mat.opacity = opacity;
+            mat.needsUpdate = true;
+          }
+        }
+      });
+    }
 
     // ── Detect click → seed new random targets ──────────────────────────────
     if (clickSignalRef.current !== lastClick.current) {
@@ -213,12 +232,16 @@ function FloatingPiece({
 
     spinKickY.current *= clickConfig.kickDecay;
 
-    g.rotation.x = Math.sin(t * config.spinSpeedX * sm + config.orbitPhaseX) * 0.45 * cap;
+    const offX = config.spawnRotationX ?? 0;
+    const offY = config.spawnRotationY ?? 0;
+    const offZ = config.spawnRotationZ ?? 0;
+
+    g.rotation.x = Math.sin(t * config.spinSpeedX * sm + config.orbitPhaseX) * 0.45 * cap + offX;
     g.rotation.y = (
       Math.sin(t * config.spinSpeedY * sm       + config.orbitPhaseY) * 0.70 +
       Math.sin(t * config.spinSpeedX * sm * 1.4 + config.orbitPhaseX) * 0.30
-    ) * 1.05 * cap + spinKickY.current;
-    g.rotation.z = Math.sin(t * config.spinSpeedZ * sm + phZ) * 0.30 * cap;
+    ) * 1.05 * cap + spinKickY.current + offY;
+    g.rotation.z = Math.sin(t * config.spinSpeedZ * sm + phZ) * 0.30 * cap + offZ;
 
     // ── Smooth orbital position using live (spring-driven) centre ──────────
     const gs   = motion.globalSpeed;
@@ -310,7 +333,9 @@ function FloatingPiece({
                 bumpMap={i === 0 ? bumpTexture : null}
               />
             ))}
-            <ShowcaseGemPart url={assets.gems[0]} color={gemColor} />
+            {assets.gems.length > 0 && (
+              <ShowcaseGemPart url={assets.gems[0]} color={gemColor} />
+            )}
           </>
         )}
       </group>
@@ -327,7 +352,6 @@ function FloatingPiece({
 }
 
 // ─── Main exported component ──────────────────────────────────────────────────
-// Owns Leva per-piece folder and engraving texture generation.
 
 export default function ShowcasePiece({
   config,
@@ -353,35 +377,14 @@ export default function ShowcasePiece({
   const [bumpTexture,      setBumpTexture]      = useState<THREE.CanvasTexture | null>(null);
   const [bumpTextureRight, setBumpTextureRight] = useState<THREE.CanvasTexture | null>(null);
 
-  // Build gemstone options map once per render cycle
-  const gemOptions = useMemo(
-    () => Object.fromEntries(GEMSTONES.map((g) => [g.label, g.id])),
-    [],
-  );
-
-  // Per-piece Leva folder — collapsed by default so the panel stays tidy
-  const rawControls = useControls(
-    `Piece · ${config.id}`,
-    {
-      finish:    { value: config.finish,   options: { Shiny: "shiny", Matte: "matte" } },
-      gemstone:  { value: config.gemstone, options: gemOptions },
-      posZ:      { value: config.posZ,      min: -8,   max: 8,   step: 0.1  },
-      scale:     { value: config.scale,     min: 0.3,  max: 5.0, step: 0.05 },
-      colliderX: { value: config.colliderX, min: 0.05, max: 5,   step: 0.01 },
-      colliderY: { value: config.colliderY, min: 0.05, max: 6,   step: 0.01 },
-      colliderZ: { value: config.colliderZ, min: 0.05, max: 5,   step: 0.01 },
-    },
-    { collapsed: true },
-  );
-
-  const pieceControls = rawControls as {
-    finish:    FinishType;
-    gemstone:  GemstoneId;
-    posZ:      number;
-    scale:     number;
-    colliderX: number;
-    colliderY: number;
-    colliderZ: number;
+  const pieceControls = {
+    finish:    config.finish,
+    gemstone:  config.gemstone,
+    posZ:      config.posZ,
+    scale:     config.scale,
+    colliderX: config.colliderX,
+    colliderY: config.colliderY,
+    colliderZ: config.colliderZ,
   };
 
   // ── Left / main engraving texture ─────────────────────────────────────────
