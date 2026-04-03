@@ -295,6 +295,34 @@ body {
   animation: oob-advisory-pulse 1s linear infinite;
 }
 
+/* Preview buy pill — solid button; only the word’s colour pulses (longer hold on inverted #6b6e70) */
+@keyframes buy-pill-label-pulse {
+  0%,
+  12% {
+    color: #ffffff;
+  }
+  25%,
+  58% {
+    color: #6b6e70;
+  }
+  75%,
+  100% {
+    color: #ffffff;
+  }
+}
+
+.buy-pill-link {
+  --buy-pill-pulse-duration: 0.45s;
+  --buy-pill-pulse-ease: cubic-bezier(0.76, 0, 0.24, 1);
+  position: relative;
+  background-color: #2a2c2d !important;
+  color: #ffffff;
+}
+
+.buy-pill-link:hover:not(:disabled) .buy-pill-label {
+  animation: buy-pill-label-pulse var(--buy-pill-pulse-duration) var(--buy-pill-pulse-ease) infinite;
+}
+
 @media (prefers-reduced-motion: reduce) {
   *,
   *::before,
@@ -308,6 +336,11 @@ body {
     border: none;
     background-color: #ffffff;
     color: #777777;
+  }
+
+  .buy-pill-link:hover:not(:disabled) .buy-pill-label {
+    animation: none !important;
+    color: #6b6e70 !important;
   }
 }
 

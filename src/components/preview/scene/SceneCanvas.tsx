@@ -369,6 +369,7 @@ interface SceneCanvasProps {
   previewLayoutEpoch?: number;
   /** Dev FPS samples — parent owns DOM overlay; collector stays inside Canvas. */
   devFpsSampleRef:    RefObject<(sample: DevFpsSample) => void>;
+  onBuy?: () => Promise<void>;
 }
 
 export default function SceneCanvas({
@@ -386,6 +387,7 @@ export default function SceneCanvas({
   cameraResetSignal,
   previewLayoutEpoch = 0,
   devFpsSampleRef,
+  onBuy,
 }: SceneCanvasProps) {
   const orbitRef = useRef<OrbitControlsHandle>(null);
   const isDev    = process.env.NODE_ENV === "development";
@@ -454,7 +456,7 @@ export default function SceneCanvas({
     </Canvas>
     {/* Desktop only — bottom left, price + buy (viewport-fixed; sidebar is separate) */}
     <div className="hidden md:flex fixed bottom-4 left-4 z-[100] flex-row items-center gap-0">
-      <PreviewShopPills variant={variant} />
+      <PreviewShopPills variant={variant} onBuy={onBuy} />
     </div>
     </>
   );

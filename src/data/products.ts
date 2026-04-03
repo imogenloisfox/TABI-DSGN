@@ -9,6 +9,13 @@ export interface ProductOption {
   shopifyHandle: string;
   /** When set, Buy uses this URL instead of `NEXT_PUBLIC_SHOPIFY_STORE_URL` + handle. */
   storefrontProductUrl?: string;
+  /**
+   * Shopify product variant ID (the numeric ID from admin/products/.../variants/ID).
+   * When set, clicking Buy creates a Shopify cart via the Storefront API with all
+   * customisation details attached as line item properties, then redirects to checkout.
+   * Leave unset to fall back to the plain product page URL.
+   */
+  shopifyVariantId?: string;
 }
 
 export const PRODUCTS: Record<ProductVariant, ProductOption> = {
@@ -19,6 +26,7 @@ export const PRODUCTS: Record<ProductVariant, ProductOption> = {
     previewImage: "/images/ring/ring-plain.png",
     dimensions: { width: 17, height: 17, unit: "mm" },
     shopifyHandle: "tabi-engraving-ring",
+    shopifyVariantId: "15844537663861",
   },
   ringConcave: {
     id: "ringConcave",
@@ -27,6 +35,7 @@ export const PRODUCTS: Record<ProductVariant, ProductOption> = {
     previewImage: "/images/ring/ring-plain.png",
     dimensions: { width: 17, height: 17, unit: "mm" },
     shopifyHandle: "tabi-engraving-ring-concave",
+    shopifyVariantId: "15844538253685",
   },
   ringClassicNoGem: {
     id: "ringClassicNoGem",
@@ -35,6 +44,7 @@ export const PRODUCTS: Record<ProductVariant, ProductOption> = {
     previewImage: "/images/ring/ring-plain.png",
     dimensions: { width: 17, height: 17, unit: "mm" },
     shopifyHandle: "tabi-engraving-ring-meus",
+    shopifyVariantId: "15844538286453",
   },
   ringConcaveNoGem: {
     id: "ringConcaveNoGem",
@@ -43,6 +53,7 @@ export const PRODUCTS: Record<ProductVariant, ProductOption> = {
     previewImage: "/images/ring/ring-plain.png",
     dimensions: { width: 17, height: 17, unit: "mm" },
     shopifyHandle: "tabi-engraving-ring-sui-plain",
+    shopifyVariantId: "15844538581365",
   },
   pendantOne: {
     id: "pendantOne",
@@ -51,6 +62,7 @@ export const PRODUCTS: Record<ProductVariant, ProductOption> = {
     previewImage: "/images/pendant/pendant-plain.png",
     dimensions: { width: 15, height: 17, unit: "mm" },
     shopifyHandle: "tabi-engraving-pendant-1",
+    shopifyVariantId: "15844538089845",
   },
   pendantTwo: {
     id: "pendantTwo",
@@ -59,6 +71,7 @@ export const PRODUCTS: Record<ProductVariant, ProductOption> = {
     previewImage: "/images/pendant/pendant-plain.png",
     dimensions: { width: 12, height: 14, unit: "mm" },
     shopifyHandle: "tabi-engraving-pendant-2",
+    shopifyVariantId: "15844538548597",
   },
   pendantMesmo: {
     id: "pendantMesmo",
@@ -67,6 +80,7 @@ export const PRODUCTS: Record<ProductVariant, ProductOption> = {
     previewImage: "/images/pendant/pendant-plain.png",
     dimensions: { width: 15, height: 17, unit: "mm" },
     shopifyHandle: "tabi-engraving-pendant-mesmo",
+    shopifyVariantId: "15844538483061",
   },
   earrings: {
     id: "earrings",
@@ -75,5 +89,6 @@ export const PRODUCTS: Record<ProductVariant, ProductOption> = {
     previewImage: "/images/ring/ring-plain.png",
     dimensions: { width: 12, height: 12, unit: "mm" },
     shopifyHandle: "tabi-engraving-earrings",
+    shopifyVariantId: "15844538188149",
   },
 };

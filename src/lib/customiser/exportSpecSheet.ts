@@ -677,6 +677,8 @@ export interface ExportSpecSheetParams {
   bumpCanvas:        HTMLCanvasElement | null;
   bumpCanvasRight?:  HTMLCanvasElement | null;
   canvasTarget:      string;
+  /** When true, returns the PDF as a Blob instead of triggering a browser download. */
+  returnBlob?:       boolean;
 }
 
 // ─── Helper — get image pixel dimensions from dataURL ─────────────────────────
@@ -692,7 +694,7 @@ function imageDimensions(dataURL: string): Promise<{ w: number; h: number }> {
 
 // ─── Main export function ─────────────────────────────────────────────────────
 
-export async function exportSpecSheet(params: ExportSpecSheetParams): Promise<void> {
+export async function exportSpecSheet(params: ExportSpecSheetParams): Promise<Blob | void> {
   await loadFont();
 
   const {
@@ -1068,9 +1070,12 @@ export async function exportSpecSheet(params: ExportSpecSheetParams): Promise<vo
     );
   }
 
-  // ── Save PDF ──────────────────────────────────────────────────────────────
+  // ── Save or return PDF ────────────────────────────────────────────────────
   const pieceSlug = (variant ?? "piece").replace(/([A-Z])/g, "-$1").toLowerCase().replace(/^-/, "");
   const sizeSlug  = isRing && ringSize ? `-${ringSize.toLowerCase()}` : "";
   const filename  = `TABI-save-${pieceSlug}${sizeSlug}-${fileDateSlug()}.pdf`;
+  if (params.returnBlob) {
+    return doc.output("blob");
+  }
   doc.save(filename);
 }

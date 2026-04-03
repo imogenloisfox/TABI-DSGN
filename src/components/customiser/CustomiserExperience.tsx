@@ -22,6 +22,8 @@ import {
   productUsesGemstone,
   variantUsesGemColour,
 } from "@/lib/customiser/types";
+import { createShopifyCart } from "@/lib/shopify/createCart";
+import { getShopifyProductUrl } from "@/lib/shopifyProductUrl";
 import { buildStateFromPreset, captureCurrentAsPreset } from "@/lib/remixPresets";
 import type { RemixPreset } from "@/lib/remixPresets";
 import { useEngravingTexture, CANVAS_SIZE } from "@/hooks/useEngravingTexture";
@@ -69,6 +71,7 @@ function buildInitialState(initialCategory?: ProductCategory, initialVariant?: P
 export interface CustomiserActions {
   save:  () => void;
   reset: () => void;
+  buy:   () => Promise<void>;
 }
 
 interface CustomiserExperienceProps {
@@ -356,14 +359,86 @@ export default function CustomiserExperience({
     engravingTextures, earringLeftTextures, earringRightTextures,
   ]);
 
+  const handleBuy = useCallback(async () => {
+    // Step 1: Generate the spec PDF and upload it to Vercel Blob so the jeweller
+    // gets a permanent download link on every Shopify order (_spec_pdf attribute).
+    let specPdfUrl: string | null = null;
+    try {
+      let heroFrontView: string | null = null;
+      let renderViews: { front: string; left: string; right: string } | null = null;
+      if (captureHandleRef.current) {
+        heroFrontView = await captureHandleRef.current.captureHeroFront();
+        renderViews   = await captureHandleRef.current.captureAngles();
+      }
+
+      const bumpCanvas      = isEarrings ? (earringLeftTextures?.bumpCanvas  ?? null) : (engravingTextures?.bumpCanvas    ?? null);
+      const bumpCanvasRight = isEarrings ? (earringRightTextures?.bumpCanvas ?? null) : undefined;
+      const variant         = state.variant;
+      const engTarget       = isEarrings ? "earringLeft" as const : variant?.startsWith("pendant") ? "pendant" as const : "ring" as const;
+      const { w, h }        = CANVAS_SIZE[engTarget];
+      const engraving       = isEarrings ? state.engravingLeft : state.engraving;
+
+      const pdfBlob = await exportSpecSheet({
+        variant,
+        heroFrontView,
+        finish:            state.finish,
+        gemstoneLabel:     variant && productUsesGemstone(variant) && state.gemstone ? (getGemstone(state.gemstone)?.label ?? null) : null,
+        ringSize:          isRing ? (state.ringSize ?? null) : null,
+        engravingText:     engraving.text,
+        engravingOffsetX:  engraving.offsetX,
+        engravingOffsetY:  engraving.offsetY,
+        engravingFontSize: engraving.fontSize,
+        engravingRotation: engraving.rotation,
+        engravingSpacing:  engraving.lineSpacing,
+        engravingRightText:     isEarrings ? state.engravingRight.text        : undefined,
+        engravingRightOffsetX:  isEarrings ? state.engravingRight.offsetX     : undefined,
+        engravingRightOffsetY:  isEarrings ? state.engravingRight.offsetY     : undefined,
+        engravingRightFontSize: isEarrings ? state.engravingRight.fontSize    : undefined,
+        engravingRightRotation: isEarrings ? state.engravingRight.rotation    : undefined,
+        engravingRightSpacing:  isEarrings ? state.engravingRight.lineSpacing : undefined,
+        gemPosition:      !isEarrings ? state.gemPosition      : undefined,
+        gemPositionLeft:  isEarrings  ? state.gemPositionLeft  : undefined,
+        gemPositionRight: isEarrings  ? state.gemPositionRight : undefined,
+        renderViews,
+        bumpCanvas,
+        bumpCanvasRight,
+        canvasTarget: `${engTarget} (${w}×${h})`,
+        returnBlob: true,
+      });
+
+      if (pdfBlob instanceof Blob) {
+        const form = new FormData();
+        form.append("file", pdfBlob, "spec.pdf");
+        const res = await fetch("/api/upload-spec", { method: "POST", body: form });
+        if (res.ok) {
+          const data = (await res.json()) as { url: string };
+          specPdfUrl = data.url;
+        }
+      }
+    } catch (err) {
+      console.error("[buy] Spec upload failed — continuing to checkout:", err);
+    }
+
+    // Step 2: Create Shopify cart (spec URL included if upload succeeded)
+    const checkoutUrl = await createShopifyCart(state, specPdfUrl);
+    if (checkoutUrl) {
+      window.open(checkoutUrl, "_blank", "noopener,noreferrer");
+    } else {
+      const fallback = getShopifyProductUrl(state.variant);
+      if (fallback) window.open(fallback, "_blank", "noopener,noreferrer");
+    }
+  }, [state, isEarrings, isRing, engravingTextures, earringLeftTextures, earringRightTextures]);
+
   // Register stable wrappers with App so header save/reset buttons can call them.
   // Refs always point to the latest version — safe with a mount-only effect.
   const handleExportSpecRef = useRef(handleExportSpec);
   handleExportSpecRef.current = handleExportSpec;
   const resetAllRef = useRef(resetAll);
   resetAllRef.current = resetAll;
+  const handleBuyRef = useRef(handleBuy);
+  handleBuyRef.current = handleBuy;
   useEffect(() => {
-    onRegisterActions?.({ save: () => handleExportSpecRef.current(), reset: () => resetAllRef.current() });
+    onRegisterActions?.({ save: () => handleExportSpecRef.current(), reset: () => resetAllRef.current(), buy: () => handleBuyRef.current() });
     return () => { onRegisterActions?.(null); };
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
@@ -668,6 +743,7 @@ export default function CustomiserExperience({
                 variant={state.variant}
                 finish={state.finish}
                 gemstone={state.gemstone}
+                onBuy={handleBuy}
                 bumpMap={isEarrings ? (earringLeftTextures?.bumpMap ?? null) : (engravingTextures?.bumpMap ?? null)}
                 colorTintMap={isEarrings ? (earringLeftTextures?.colorTintMap ?? null) : (engravingTextures?.colorTintMap ?? null)}
                 bumpMapRight={earringRightTextures?.bumpMap ?? null}

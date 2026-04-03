@@ -294,7 +294,7 @@ export default function App() {
         {/* Mobile price/buy — inside the flex column so the panel pushes them down naturally */}
         {view === "customiser" && (
           <div className="shrink-0 md:hidden">
-            <PreviewShopPills variant={liveVariant} />
+            <PreviewShopPills variant={liveVariant} onBuy={customiserActions?.buy} />
           </div>
         )}
       </div>

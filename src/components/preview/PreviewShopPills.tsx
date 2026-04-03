@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import { variantCategory, type ProductVariant } from "@/lib/customiser/types";
 import {
   CHROME_HEADER_FONT,
@@ -23,7 +24,15 @@ const VARIANT_LABEL: Record<string, string> = {
   earrings:         "earrings",
 };
 
-export default function PreviewShopPills({ variant }: { variant: ProductVariant | null }) {
+export default function PreviewShopPills({
+  variant,
+  onBuy,
+}: {
+  variant: ProductVariant | null;
+  onBuy?: () => Promise<void>;
+}) {
+  const [isBuying, setIsBuying] = useState(false);
+
   const gbp = variant !== null ? PRODUCT_PRICE_GBP[variant] : null;
   const priceLabel = gbp !== null ? formatPriceGbpLabel(gbp) : "—";
   const shopUrl = getShopifyProductUrl(variant);
@@ -31,13 +40,21 @@ export default function PreviewShopPills({ variant }: { variant: ProductVariant 
   const priceBgClass = categoryPreviewPricePillBgClass(category);
   const productName = variant !== null ? (VARIANT_LABEL[variant] ?? variant) : null;
 
-  const buyPill = shopUrl ? (
+  async function handleBuyClick() {
+    if (!onBuy || isBuying) return;
+    setIsBuying(true);
+    try { await onBuy(); } finally { setIsBuying(false); }
+  }
+
+  const buyPill = onBuy ? (
+    <PreviewBuyPillLink onClick={handleBuyClick} loading={isBuying} />
+  ) : shopUrl ? (
     <PreviewBuyPillLink href={shopUrl} />
   ) : (
     <button
       type="button"
       disabled
-      title="Add storefrontProductUrl on the product in products.ts or set NEXT_PUBLIC_SHOPIFY_STORE_URL"
+      title="Add shopifyVariantId on the product in products.ts or set NEXT_PUBLIC_SHOPIFY_STORE_URL"
       className={`${CHROME_TOP_PILL_BASE} ${PILL_W} !cursor-not-allowed !bg-[#2a2c2d] !text-[#ffffff]`}
       style={{ ...CHROME_HEADER_FONT, boxShadow: "none" }}
     >
