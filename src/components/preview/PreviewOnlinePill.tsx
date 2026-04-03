@@ -3,9 +3,9 @@
 import { CHROME_HEADER_FONT, CHROME_TOP_PILL_BASE } from "@/lib/chromeUi";
 import { usePresenceCount } from "@/hooks/usePresenceCount";
 
-/** Matches dev FPS pill chrome (no hover — read-only). */
+/** Homepage + customiser preview — read-only; no hover. */
 const PILL_TAIL =
-  "w-[100px] shrink-0 justify-center tabular-nums normal-case lowercase !bg-[#b1b1b1] !text-[#2a2c2d] !cursor-default select-none";
+  "w-[100px] shrink-0 justify-center tabular-nums normal-case lowercase !bg-[#8d8d8d] !text-[#2a2c2d] !cursor-default select-none";
 
 export default function PreviewOnlinePill() {
   const count = usePresenceCount(true);

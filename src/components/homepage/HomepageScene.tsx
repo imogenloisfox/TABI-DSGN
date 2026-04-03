@@ -11,7 +11,7 @@ import {
 } from "react";
 import * as THREE from "three";
 import { Canvas, useFrame, useThree } from "@react-three/fiber";
-import { Html } from "@react-three/drei";
+
 import { getEnvTexture } from "@/lib/envTextureCache";
 import { EffectComposer, DepthOfField } from "@react-three/postprocessing";
 import type { DepthOfFieldEffect } from "postprocessing";
@@ -22,7 +22,7 @@ import ShowcasePiece, {
   type ClickConfig,
 } from "./ShowcasePiece";
 import type { ProductCategory, ProductVariant } from "@/lib/customiser/types";
-import { CHROME_GREY, CHROME_HEADER_FONT } from "@/lib/chromeUi";
+
 import {
   DevFpsMetricsCollector,
   DevFpsPillOverlay,
@@ -106,7 +106,7 @@ function SeparationSystem({
   collisionPadding,
   stiffness,
 }: {
-  motionStatesRef:  React.MutableRefObject<PieceMotionState[]>;
+  motionStatesRef:  React.RefObject<PieceMotionState[]>;
   collisionScale:   number;
   collisionPadding: number;
   stiffness:        number;
@@ -188,7 +188,7 @@ function SmartDOF({
   focalLength,
   bokehScale,
 }: {
-  hoveredZRef:   React.MutableRefObject<number | null>;
+  hoveredZRef:   React.RefObject<number | null>;
   restFocusDist: number;
   focalLength:   number;
   bokehScale:    number;
@@ -386,8 +386,8 @@ function Scene({
   );
 }
 
-/** Lobby loader opacity fade (ms) — keep in sync with CSS transition below. */
-const LOBBY_LOADER_FADE_MS = 550;
+/** Lobby loader fade duration (ms) — keep in sync with CSS transition below. */
+const LOBBY_LOADER_FADE_MS = 1200;
 
 type LobbyLoaderPhase = "on" | "fade" | "off";
 
@@ -401,24 +401,17 @@ function LobbyLoaderOverlay({
   if (phase === "off") return null;
   const fading = phase === "fade";
   return (
-    <Html transform pointerEvents="none">
-      <div
-        className={`flex h-full w-full items-center justify-center select-none transition-opacity ease-out ${
-          fading ? "opacity-0" : "opacity-100"
-        }`}
-        style={{ transitionDuration: `${LOBBY_LOADER_FADE_MS}ms` }}
-        onTransitionEnd={(e) => {
-          if (e.propertyName === "opacity" && fading) onFadeComplete();
-        }}
-      >
-        <span
-          className="homepage-loading-pulse inline-block cursor-default text-[13.9px] tracking-[-0.3px] lowercase"
-          style={{ ...CHROME_HEADER_FONT, color: CHROME_GREY, fontSize: "13.9px" }}
-        >
-          tabi dsgn
-        </span>
-      </div>
-    </Html>
+    <div
+      className="absolute inset-0 z-10 pointer-events-none"
+      style={{
+        background: "#e9e9e9",
+        opacity: fading ? 0 : 1,
+        transition: `opacity ${LOBBY_LOADER_FADE_MS}ms cubic-bezier(0.76, 0, 0.24, 1)`,
+      }}
+      onTransitionEnd={(e) => {
+        if (e.propertyName === "opacity" && fading) onFadeComplete();
+      }}
+    />
   );
 }
 
@@ -431,26 +424,22 @@ function LobbyEntrance({
   showcaseGemEpoch,
   devFpsSampleRef,
   onSceneReady,
+  onLoaderPhaseChange,
 }: {
-  onPieceClick:     (category: ProductCategory, variant: ProductVariant) => void;
-  showcaseGemEpoch: number;
-  devFpsSampleRef?: RefObject<(sample: DevFpsSample) => void> | null;
-  /** Fired once when ExperienceReadyGate confirms the first GL draw has landed. */
-  onSceneReady?:    () => void;
+  onPieceClick:          (category: ProductCategory, variant: ProductVariant) => void;
+  showcaseGemEpoch:      number;
+  devFpsSampleRef?:      RefObject<(sample: DevFpsSample) => void> | null;
+  onSceneReady?:         () => void;
+  onLoaderPhaseChange?:  (phase: LobbyLoaderPhase) => void;
 }) {
-  const [phase, setPhase] = useState<LobbyLoaderPhase>("on");
   const fadeStartedRef = useRef(false);
 
   const beginFadeOut = useCallback(() => {
     if (fadeStartedRef.current) return;
     fadeStartedRef.current = true;
     onSceneReady?.();
-    setPhase("fade");
-  }, [onSceneReady]);
-
-  const onFadeComplete = useCallback(() => {
-    setPhase("off");
-  }, []);
+    onLoaderPhaseChange?.("fade");
+  }, [onSceneReady, onLoaderPhaseChange]);
 
   useEffect(() => {
     const t = window.setTimeout(beginFadeOut, 12000);
@@ -467,7 +456,6 @@ function LobbyEntrance({
         />
       </Suspense>
       {devFpsSampleRef ? <DevFpsMetricsCollector onSampleRef={devFpsSampleRef} /> : null}
-      <LobbyLoaderOverlay phase={phase} onFadeComplete={onFadeComplete} />
     </>
   );
 }
@@ -491,6 +479,7 @@ export default function HomepageScene({
   // MobileCameraAdjust (useLayoutEffect) has already set FOV/posZ — the user
   // never sees the default-camera snap.
   const [ready, setReady] = useState(false);
+  const [loaderPhase, setLoaderPhase] = useState<LobbyLoaderPhase>("on");
 
   const [devFpsMetrics, setDevFpsMetrics] = useState<DevFpsSample>({
     fps:    0,
@@ -503,7 +492,10 @@ export default function HomepageScene({
   return (
     <div
       className={`absolute inset-0 transition-opacity duration-500 ease-out${exiting ? " pointer-events-none" : ""}`}
-      style={{ opacity: exiting ? 0 : ready ? 1 : 0, transition: "opacity 0.4s ease" }}
+      style={{
+        opacity: exiting ? 0 : ready ? 1 : 0,
+        transition: exiting ? "opacity 0.4s ease" : "opacity 1200ms cubic-bezier(0.76, 0, 0.24, 1)",
+      }}
     >
       <div ref={lobbySurfaceRef} className="absolute inset-0">
         <Canvas
@@ -522,12 +514,17 @@ export default function HomepageScene({
             showcaseGemEpoch={showcaseGemEpoch}
             devFpsSampleRef={isDev ? devSampleRef : undefined}
             onSceneReady={() => setReady(true)}
+            onLoaderPhaseChange={setLoaderPhase}
           />
         </Canvas>
-        <div className="pointer-events-auto fixed bottom-4 right-4 z-[100] flex flex-row items-center gap-0">
+        <div className="pointer-events-auto fixed bottom-4 right-4 z-[100] flex flex-row items-end gap-0">
           <PreviewOnlinePill />
           {isDev ? <DevFpsPillOverlay metrics={devFpsMetrics} /> : null}
         </div>
+        <LobbyLoaderOverlay
+          phase={loaderPhase}
+          onFadeComplete={() => setLoaderPhase("off")}
+        />
         <LobbyClickParticles surfaceRef={lobbySurfaceRef} active={!exiting} />
       </div>
     </div>

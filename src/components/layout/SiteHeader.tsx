@@ -9,8 +9,7 @@ import {
 } from "@/lib/chromeUi";
 
 /** Info / play chrome — invert on hover only (open state stays grey; no :active invert). */
-const HEADER_CHROME_HOVER_INVERT =
-  "transition-[color,background-color] duration-150 ease-out enabled:hover:!bg-[#7a7a7a] enabled:hover:!text-[#ffffff]";
+const HEADER_CHROME_HOVER_INVERT = "";
 
 interface SiteHeaderProps {
   infoOpen:       boolean;
@@ -49,7 +48,7 @@ export default function SiteHeader({
   const tabiPill = onBack ? (
     <VanishButton
       onClick={onBack}
-      className={`${CHROME_TOP_PILL_BASE} relative z-10 w-[80px] min-w-0 shrink-0 justify-center !bg-white text-[13.9px] tracking-[-0.3px] lowercase ${HEADER_CHROME_HOVER_INVERT}`}
+      className={`${CHROME_TOP_PILL_BASE} relative z-10 w-[80px] min-w-0 shrink-0 justify-center !bg-white text-[13.9px] tracking-[-0.3px] lowercase mobile-btn-hover mobile-btn-hover-f ${HEADER_CHROME_HOVER_INVERT}`}
       style={{ ...CHROME_HEADER_FONT, color: CHROME_GREY, boxShadow: "none", fontSize: "13.9px" }}
     >
       tabi dsgn
@@ -72,11 +71,10 @@ export default function SiteHeader({
       {/* Pill row — scrolls horizontally on mobile if all pills don't fit */}
       <div className="flex items-center gap-0 self-start overflow-x-auto whitespace-nowrap">
         <VanishButton
-          deferOnClick
           onClick={onInfoToggle}
           aria-expanded={infoOpen}
           aria-controls="site-info-columns"
-          className={`${CHROME_TOP_PILL_BASE} relative z-10 w-[80px] shrink-0 overflow-visible normal-case lowercase !bg-[#d9d9d9] text-[#2a2c2d] ${HEADER_CHROME_HOVER_INVERT}`}
+          className={`${CHROME_TOP_PILL_BASE} relative z-10 w-[80px] shrink-0 overflow-visible normal-case lowercase !bg-[#d9d9d9] text-[#2a2c2d] mobile-btn-hover mobile-btn-hover-d9 ${HEADER_CHROME_HOVER_INVERT}`}
           style={{ ...CHROME_HEADER_FONT, boxShadow: "none" }}
         >
           info
@@ -85,7 +83,7 @@ export default function SiteHeader({
         {showRemixButton && onRemix ? (
           <VanishButton
             onClick={onRemix}
-            className={`flex ${CHROME_TOP_PILL_BASE} relative z-10 w-[80px] shrink-0 justify-center overflow-visible normal-case lowercase !bg-[#b1b1b1] text-[#2a2c2d] ${HEADER_CHROME_HOVER_INVERT}`}
+            className={`flex ${CHROME_TOP_PILL_BASE} relative z-10 w-[80px] shrink-0 justify-center overflow-visible normal-case lowercase !bg-[#b1b1b1] text-[#2a2c2d] mobile-btn-hover mobile-btn-hover-b1 ${HEADER_CHROME_HOVER_INVERT}`}
             style={{ ...CHROME_HEADER_FONT, boxShadow: "none" }}
           >
             remix
@@ -96,7 +94,7 @@ export default function SiteHeader({
           <VanishButton
             onClick={onSave}
             disabled={isSaving}
-            className={`flex md:hidden ${CHROME_TOP_PILL_BASE} relative z-10 w-[80px] shrink-0 justify-center overflow-visible normal-case lowercase !bg-[#8D8D8D] !text-[#2a2c2d] disabled:cursor-wait disabled:opacity-50 ${HEADER_CHROME_HOVER_INVERT}`}
+            className={`flex md:hidden ${CHROME_TOP_PILL_BASE} relative z-10 w-[80px] shrink-0 justify-center overflow-visible normal-case lowercase !bg-[#8D8D8D] !text-[#2a2c2d] disabled:cursor-wait disabled:opacity-50 mobile-btn-hover ${HEADER_CHROME_HOVER_INVERT}`}
             style={{ ...CHROME_HEADER_FONT, boxShadow: "none" }}
           >
             {isSaving ? "saving…" : "save"}
@@ -106,7 +104,7 @@ export default function SiteHeader({
         {onReset ? (
           <VanishButton
             onClick={onReset}
-            className={`flex md:hidden ${CHROME_TOP_PILL_BASE} relative z-10 w-[80px] shrink-0 justify-center overflow-visible normal-case lowercase !bg-[#7A7A7A] !text-[#2a2c2d] ${HEADER_CHROME_HOVER_INVERT}`}
+            className={`flex md:hidden ${CHROME_TOP_PILL_BASE} relative z-10 w-[80px] shrink-0 justify-center overflow-visible normal-case lowercase !bg-[#777777] !text-[#2a2c2d] mobile-btn-hover ${HEADER_CHROME_HOVER_INVERT}`}
             style={{ ...CHROME_HEADER_FONT, boxShadow: "none" }}
           >
             reset
@@ -115,11 +113,10 @@ export default function SiteHeader({
 
         {showPlayButton && onPlayToggle ? (
           <VanishButton
-            deferOnClick
             onClick={onPlayToggle}
             aria-expanded={playOpen}
             aria-controls="site-play-hint"
-            className={`hidden md:flex ${CHROME_TOP_PILL_BASE} relative z-10 w-[80px] shrink-0 overflow-visible normal-case lowercase !bg-[#b1b1b1] text-[#2a2c2d] ${HEADER_CHROME_HOVER_INVERT}`}
+            className={`hidden md:flex ${CHROME_TOP_PILL_BASE} relative z-10 w-[80px] shrink-0 overflow-visible normal-case lowercase !bg-[#b1b1b1] text-[#2a2c2d] mobile-btn-hover mobile-btn-hover-b1 ${HEADER_CHROME_HOVER_INVERT}`}
             style={{ ...CHROME_HEADER_FONT, boxShadow: "none" }}
           >
             play
@@ -136,16 +133,16 @@ export function ProductStrip() {
     <div className="inline-flex min-w-0 max-w-full select-none">
       <div className="flex min-w-0 items-stretch">
         <span
-          className="flex h-[30px] w-[180px] shrink-0 items-center justify-center bg-[#d9d9d9] px-3 text-center text-[14px] font-bold leading-none lowercase tracking-normal"
+          className="flex h-[30px] w-[180px] shrink-0 items-center justify-center bg-[#8d8d8d] px-3 text-center text-[14px] font-bold leading-none lowercase tracking-normal"
           style={{ ...CHROME_HEADER_FONT, color: CHROME_GREY }}
         >
           select a product to start
         </span>
         <LoopParticleText
           words={["engraving", "customising", "designing", "personalising", "building"]}
-          wrapperClassName="flex h-[30px] items-center bg-white px-3"
+          wrapperClassName="flex h-[30px] items-center bg-[#777777] px-3"
           className="text-[14px] font-bold leading-none lowercase tracking-normal"
-          style={{ ...CHROME_HEADER_FONT, color: CHROME_GREY }}
+          style={{ ...CHROME_HEADER_FONT, color: "#e9e9e9" }}
         />
       </div>
     </div>

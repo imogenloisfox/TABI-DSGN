@@ -93,7 +93,7 @@ export default function VanishText({ text, trigger, onDone, className, style }: 
     ctx.scale(dpr, dpr);
 
     const computed  = window.getComputedStyle(span);
-    const textColor = computed.color || "#000000";
+    const textColor = "#2a2c2d";
 
     ctx.font          = `${computed.fontWeight} ${computed.fontSize} ${computed.fontFamily}`;
     ctx.letterSpacing = computed.letterSpacing ?? "0px";

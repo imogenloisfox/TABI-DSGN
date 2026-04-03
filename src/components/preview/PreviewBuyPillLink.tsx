@@ -15,7 +15,7 @@ interface RainbowParticle {
   hue: number;
 }
 
-const LINK_CLASS = `${CHROME_TOP_PILL_BASE} relative w-[120px] shrink-0 overflow-hidden tabular-nums lowercase select-none !bg-[#2a2c2d] !text-[#ffffff]`;
+const LINK_CLASS = `${CHROME_TOP_PILL_BASE} relative w-[120px] shrink-0 overflow-hidden tabular-nums lowercase select-none !bg-[#2a2c2d] !text-[#ffffff] hover:!bg-[#ffffff] hover:!text-[#2a2c2d] active:!bg-[#ffffff] active:!text-[#2a2c2d] transition-[color,background-color] duration-150`;
 
 export default function PreviewBuyPillLink({ href }: Props) {
   const wrapRef = useRef<HTMLAnchorElement>(null);

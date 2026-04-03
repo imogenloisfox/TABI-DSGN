@@ -14,13 +14,13 @@ export default function StartPrompt({ onStart }: StartPromptProps) {
         <h1 className="font-script text-5xl leading-none text-foreground md:text-7xl">
           TABI
         </h1>
-        <p className="text-[10px] tracking-normal text-[#7a7a7a]" style={CHROME_LABEL_FONT}>
+        <p className="text-[10px] tracking-normal text-[#676767]" style={CHROME_LABEL_FONT}>
           Engraving customiser
         </p>
       </div>
 
       <p
-        className="max-w-xs text-[10px] leading-relaxed tracking-normal text-[#7a7a7a]"
+        className="max-w-xs text-[10px] leading-relaxed tracking-normal text-[#676767]"
         style={CHROME_LABEL_FONT}
       >
         Design your own personalised piece.

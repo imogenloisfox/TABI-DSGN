@@ -16,18 +16,7 @@ const CANVAS_SIZE_DESKTOP: Record<EngravingTarget, { w: number; h: number }> = {
   earringRight: { w: 512,  h: 2048 },
 };
 
-// On mobile, halve all canvas dimensions to halve GPU texture memory usage.
-// Safe-zone fractions are scale-invariant so no other constants need changing.
-const isMobileDevice = typeof window !== "undefined" && window.innerWidth < 768;
-
-export const CANVAS_SIZE: Record<EngravingTarget, { w: number; h: number }> = isMobileDevice
-  ? {
-      ring:         { w: 1024, h: 256  },
-      pendant:      { w: 512,  h: 512  },
-      earringLeft:  { w: 256,  h: 1024 },
-      earringRight: { w: 256,  h: 1024 },
-    }
-  : CANVAS_SIZE_DESKTOP;
+export const CANVAS_SIZE = CANVAS_SIZE_DESKTOP;
 
 // ─── Safe zone margins (fraction of canvas dimension) ─────────────────────────
 
@@ -66,9 +55,10 @@ const CANVAS_FOR_PIECE: Record<PieceSafeZoneKey, { w: number; h: number }> = {
 
 const SAFE_ZONE_PX: Record<PieceSafeZoneKey, SafeZoneMargins> = {
   ringClassic:      { top: 25,  bottom: 25,  left: 400,  right: 400  },
-  ringConcave:      { top: 50,  bottom: 50,  left: 300,  right: 300  },
+  // Concave rings: horizontal keep-out removed — only top/bottom safe margins (see checkTextOutOfBounds).
+  ringConcave:      { top: 50, bottom: 50, left: 0, right: 0 },
   ringClassicNoGem: { top: 25,  bottom: 25,  left: 400,  right: 400  },
-  ringConcaveNoGem: { top: 50,  bottom: 50,  left: 300,  right: 300  },
+  ringConcaveNoGem: { top: 50, bottom: 50, left: 10, right: 10 },
   // Pixel values halved from their 2048×2048 originals to preserve the same
   // fractional safe-zone margins now that pendant canvas is 1024×1024.
   pendantOne:       { top: 25, bottom:  30, left: 30, right: 30 },

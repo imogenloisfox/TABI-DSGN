@@ -1,12 +1,20 @@
 "use client";
 
-import { useCallback, useRef, useState, type RefObject } from "react";
+import {
+  useCallback,
+  useRef,
+  useState,
+  type CSSProperties,
+  type RefObject,
+} from "react";
 import { useFrame } from "@react-three/fiber";
-import { CHROME_HEADER_FONT, CHROME_TOP_PILL_BASE } from "@/lib/chromeUi";
+import { CHROME_HEADER_FONT } from "@/lib/chromeUi";
 
-/** Same hover invert as `SiteHeader` info / play pills. */
-const DEV_METRIC_PILL_HOVER =
-  "transition-[color,background-color] duration-150 ease-out hover:!bg-[#7a7a7a] hover:!text-[#ffffff]";
+/** No default `bg` in base; fill pinned via `home-fixed-pill-surface` + CSS variable. */
+const DEV_PILL_BASE =
+  "inline-flex h-[30px] w-[100px] shrink-0 cursor-pointer items-center justify-center border-0 px-3 text-[14px] font-bold shadow-none outline-none [-webkit-tap-highlight-color:transparent] tabular-nums normal-case lowercase select-none";
+
+const DEV_PILL_LABEL = "!text-[#e9e9e9]";
 
 type DevMetricMode = "fps" | "ms" | "mb";
 
@@ -80,8 +88,14 @@ export function DevFpsPillOverlay({ metrics }: { metrics: DevFpsSample }) {
   return (
     <button
       type="button"
-      className={`${CHROME_TOP_PILL_BASE} w-[100px] shrink-0 cursor-pointer justify-center tabular-nums normal-case lowercase !bg-[#d9d9d9] !text-[#2a2c2d] ${DEV_METRIC_PILL_HOVER} select-none`}
-      style={{ ...CHROME_HEADER_FONT, boxShadow: "none" }}
+      className={`${DEV_PILL_BASE} home-fixed-pill-surface ${DEV_PILL_LABEL}`}
+      style={
+        {
+          ...CHROME_HEADER_FONT,
+          boxShadow: "none",
+          "--home-fixed-pill-bg": "#777777",
+        } as CSSProperties
+      }
       onClick={cycleMode}
       aria-label={`Performance readout: ${label}. Click to change metric.`}
     >

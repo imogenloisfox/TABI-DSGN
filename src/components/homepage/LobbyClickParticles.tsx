@@ -5,7 +5,7 @@ import { useCallback, useEffect, useRef, type RefObject } from "react";
 /** Aligned with `LoopParticleText` / `VanishText` burst feel. */
 const SPEED_MULT = 1.5;
 
-const PALETTE = ["#2a2c2d", "#4a4c4d", "#5c5c5c", "#7a7a7a", "#9a9a9a", "#b1b1b1", "#d9d9d9"];
+const PALETTE = ["#2a2c2d", "#4a4c4d", "#5c5c5c", "#676767", "#9a9a9a", "#b1b1b1", "#d9d9d9"];
 
 interface Particle {
   x: number;

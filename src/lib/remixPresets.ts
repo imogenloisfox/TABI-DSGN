@@ -107,4 +107,38 @@ function remixPresetsFromShowcase(): RemixPreset[] {
   });
 }
 
-export const REMIX_PRESETS: RemixPreset[] = remixPresetsFromShowcase();
+export const REMIX_PRESETS: RemixPreset[] = [
+  ...remixPresetsFromShowcase(),
+  {
+    id:      "preset-ringConcaveNoGem-loves-me",
+    variant: "ringConcaveNoGem",
+    finish:  "matte",
+    engraving: {
+      text: [
+        "she loves me, she loves me not",
+        "she loves me, she loves me not",
+        "she loves me, she loves me not",
+        "she loves me, she loves me not",
+        "she loves me, she loves me not",
+      ].join("\n"),
+      offsetX:     0.008,  // 51% of -0.4…0.4
+      offsetY:     0.0,    // 50% of -0.4…0.4
+      fontSize:    0.32,   // 12% of 0.2…1.2
+      rotation:    -180,
+      lineSpacing: 0.452,  // 38% of 0.3…0.7
+    },
+  },
+  {
+    id:      "preset-ringClassicNoGem-angel-of-mine",
+    variant: "ringClassicNoGem",
+    finish:  "shiny",
+    engraving: {
+      text:        "Angel\nof mine",
+      offsetX:      0.024,  // 53% of -0.4…0.4
+      offsetY:      0.032,  // 54% of -0.4…0.4
+      fontSize:     0.61,   // 41% of 0.2…1.2
+      rotation:    -180,
+      lineSpacing:  0.552,  // 63% of 0.3…0.7
+    },
+  },
+];

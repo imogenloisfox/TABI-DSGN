@@ -1,14 +1,24 @@
 "use client";
 
 import dynamic from "next/dynamic";
+import { useRef, useState } from "react";
 import * as THREE from "three";
 import type { ProductVariant, FinishType, GemstoneId, GemPosition } from "@/lib/customiser/types";
 import type { SceneCanvasHandle } from "@/components/preview/scene/SceneCanvas";
+import {
+  DevFpsPillOverlay,
+  type DevFpsSample,
+} from "@/components/preview/DevFpsSessionChrome";
+import PreviewMakingVideo from "@/components/preview/PreviewMakingVideo";
+import PreviewOnlinePill from "@/components/preview/PreviewOnlinePill";
 
 const SceneCanvas = dynamic(
   () => import("@/components/preview/scene/SceneCanvas"),
   { ssr: false }
 );
+
+/** Right rail width matches making-of video; online + FPS pills row aligns within it. */
+const PREVIEW_RIGHT_RAIL_W = "w-[220px]";
 
 interface PreviewStageProps {
   variant:            ProductVariant | null;
@@ -25,8 +35,6 @@ interface PreviewStageProps {
   cameraResetSignal?: number;
   /** Incremented after sidebar chrome changes; used to resync WebGL once CSS width transition finishes. */
   previewLayoutEpoch?: number;
-  /** Height of fixed left chrome stack — forwarded to PreviewShopPills for dynamic top offset. */
-  leftChromeStackPx?: number;
 }
 
 export default function PreviewStage({
@@ -43,32 +51,54 @@ export default function PreviewStage({
   onCaptureReady,
   cameraResetSignal,
   previewLayoutEpoch = 0,
-  leftChromeStackPx,
 }: PreviewStageProps) {
-  return (
-    <div className="relative h-full min-h-0 w-full min-w-0 bg-[#e9e9e9]">
-      <SceneCanvas
-        variant={variant}
-        finish={finish}
-        gemstone={gemstone}
-        bumpMap={bumpMap}
-        colorTintMap={colorTintMap}
-        bumpMapRight={bumpMapRight}
-        colorTintMapRight={colorTintMapRight}
-        gemPosition={gemPosition}
-        gemPositionLeft={gemPositionLeft}
-        gemPositionRight={gemPositionRight}
-        onCaptureReady={onCaptureReady}
-        cameraResetSignal={cameraResetSignal}
-        previewLayoutEpoch={previewLayoutEpoch}
-        leftChromeStackPx={leftChromeStackPx}
-      />
+  const isDev = process.env.NODE_ENV === "development";
+  const [devFpsMetrics, setDevFpsMetrics] = useState<DevFpsSample>({
+    fps:    0,
+    msAvg:  0,
+    heapMb: null,
+  });
+  const devFpsSampleRef = useRef<(sample: DevFpsSample) => void>(setDevFpsMetrics);
+  devFpsSampleRef.current = setDevFpsMetrics;
 
-      {!variant && (
-        <div className="pointer-events-none absolute inset-0 flex items-center justify-center">
-          <span className="text-xs text-muted">Select a piece</span>
+  return (
+    <div className="flex min-h-0 min-w-0 w-full flex-1 flex-col bg-[#e9e9e9] md:flex-row">
+      {/* Centre column — WebGL fills this region only so the product is framed between sidebar and right rail */}
+      <div className="relative min-h-0 min-w-0 flex-1">
+        <SceneCanvas
+          variant={variant}
+          finish={finish}
+          gemstone={gemstone}
+          bumpMap={bumpMap}
+          colorTintMap={colorTintMap}
+          bumpMapRight={bumpMapRight}
+          colorTintMapRight={colorTintMapRight}
+          gemPosition={gemPosition}
+          gemPositionLeft={gemPositionLeft}
+          gemPositionRight={gemPositionRight}
+          onCaptureReady={onCaptureReady}
+          cameraResetSignal={cameraResetSignal}
+          previewLayoutEpoch={previewLayoutEpoch}
+          devFpsSampleRef={devFpsSampleRef}
+        />
+
+        {!variant && (
+          <div className="pointer-events-none absolute inset-0 flex items-center justify-center">
+            <span className="text-xs text-muted">Select a piece</span>
+          </div>
+        )}
+      </div>
+
+      {/* Desktop — dedicated column: making-of + online + FPS (no overlap with 3D viewport) */}
+      <aside
+        className={`hidden shrink-0 flex-col items-end justify-end gap-0 self-stretch bg-[#e9e9e9] pb-4 pr-4 pt-0 md:flex ${PREVIEW_RIGHT_RAIL_W}`}
+      >
+        <PreviewMakingVideo variant={variant} />
+        <div className="flex flex-row items-center gap-0">
+          <PreviewOnlinePill />
+          {isDev ? <DevFpsPillOverlay metrics={devFpsMetrics} /> : null}
         </div>
-      )}
+      </aside>
     </div>
   );
 }

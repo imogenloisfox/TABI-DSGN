@@ -4,13 +4,14 @@ import { CHROME_HEADER_FONT } from "@/lib/chromeUi";
 
 // ─── Props ────────────────────────────────────────────────────────────────────
 
-export type SliderTrackMode = "default" | "ring" | "pendant";
+export type SliderTrackMode = "default" | "ring" | "pendant" | "mobileEngraving";
 
 /** White rail (#ffffff); fill matches category (ring #d9d9d9, pendant #b1b1b1, earrings #8d8d8d). */
 const TRACK: Record<SliderTrackMode, { rail: string; fill: string }> = {
-  ring:    { rail: "bg-[#ffffff]", fill: "bg-[#d9d9d9]" },
-  pendant: { rail: "bg-[#ffffff]", fill: "bg-[#b1b1b1]" },
-  default: { rail: "bg-[#ffffff]", fill: "bg-[#8d8d8d]" },
+  ring:            { rail: "bg-[#b1b1b1]", fill: "bg-[#d9d9d9]" },
+  pendant:         { rail: "bg-[#b1b1b1]", fill: "bg-[#d9d9d9]" },
+  default:         { rail: "bg-[#b1b1b1]", fill: "bg-[#d9d9d9]" },
+  mobileEngraving: { rail: "bg-[#b1b1b1]", fill: "bg-[#d9d9d9]" },
 };
 
 interface BarSliderProps {

@@ -5,7 +5,6 @@ import {
   useCallback,
   useEffect,
   useRef,
-  useState,
   type RefObject,
 } from "react";
 import * as THREE from "three";
@@ -14,14 +13,12 @@ import { OrbitControls } from "@react-three/drei";
 import type { ProductVariant, FinishType, GemstoneId, GemPosition } from "@/lib/customiser/types";
 import {
   DevFpsMetricsCollector,
-  DevFpsPillOverlay,
   type DevFpsSample,
 } from "@/components/preview/DevFpsSessionChrome";
 import { CAMERA_CONFIG, ORBIT_CONSTRAINTS, DEFAULT_ORBIT_DISTANCE } from "./sceneConfig";
 import ProductModel, { type OrbitControlsHandle } from "./ProductModel";
 import StudioLighting from "./StudioLighting";
 import { getEnvTexture } from "@/lib/envTextureCache";
-import PreviewOnlinePill from "@/components/preview/PreviewOnlinePill";
 import PreviewShopPills from "@/components/preview/PreviewShopPills";
 
 /** Slightly longer than aside `duration-[480ms]` so layout has settled before resync. */
@@ -370,8 +367,8 @@ interface SceneCanvasProps {
   onCaptureReady?:    ((handle: SceneCanvasHandle | null) => void) | null;
   cameraResetSignal?: number;
   previewLayoutEpoch?: number;
-  /** Height of the fixed left chrome stack — drives PreviewShopPills top offset. */
-  leftChromeStackPx?: number;
+  /** Dev FPS samples — parent owns DOM overlay; collector stays inside Canvas. */
+  devFpsSampleRef:    RefObject<(sample: DevFpsSample) => void>;
 }
 
 export default function SceneCanvas({
@@ -388,24 +385,16 @@ export default function SceneCanvas({
   onCaptureReady,
   cameraResetSignal,
   previewLayoutEpoch = 0,
-  leftChromeStackPx,
+  devFpsSampleRef,
 }: SceneCanvasProps) {
   const orbitRef = useRef<OrbitControlsHandle>(null);
   const isDev    = process.env.NODE_ENV === "development";
   const isMobile = typeof window !== "undefined" && window.innerWidth < 768;
 
-  const [devFpsMetrics, setDevFpsMetrics] = useState<DevFpsSample>({
-    fps:    0,
-    msAvg:  0,
-    heapMb: null,
-  });
-  const devSampleRef = useRef<(sample: DevFpsSample) => void>(setDevFpsMetrics);
-  devSampleRef.current = setDevFpsMetrics;
-
   return (
     <>
     <Canvas
-      className="r3f-canvas-wrapper"
+      className="r3f-canvas-wrapper r3f-canvas-preview"
       resize={{ scroll: false }}
       camera={CAMERA_CONFIG}
       // Cap DPR at 1 on low-end devices (< 4 cores); cap at 2 otherwise.
@@ -460,14 +449,12 @@ export default function SceneCanvas({
         {...ORBIT_CONSTRAINTS}
         enableZoom={!isMobile}
       />
-      {isDev && <DevFpsMetricsCollector onSampleRef={devSampleRef} />}
+      {isDev && <DevFpsMetricsCollector onSampleRef={devFpsSampleRef} />}
       {isDev && <DevDiagnostics />}
     </Canvas>
-    <PreviewShopPills variant={variant} topOffsetPx={leftChromeStackPx} />
-    {/* Desktop only — bottom right, same padding as header */}
-    <div className="hidden md:flex fixed bottom-4 right-4 z-[100] flex-row items-center gap-0">
-      <PreviewOnlinePill />
-      {isDev ? <DevFpsPillOverlay metrics={devFpsMetrics} /> : null}
+    {/* Desktop only — bottom left, price + buy (viewport-fixed; sidebar is separate) */}
+    <div className="hidden md:flex fixed bottom-4 left-4 z-[100] flex-row items-center gap-0">
+      <PreviewShopPills variant={variant} />
     </div>
     </>
   );

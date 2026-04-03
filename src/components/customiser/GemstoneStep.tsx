@@ -15,8 +15,13 @@ import {
   chromeChipInactive,
   chromeChipInactivePendant,
   pendantGemSwatchChipSelected,
+  pendantGemSwatchChipDefaultMobile,
+  pendantGemSwatchChipSelectedMobile,
+  mobileBtnStyle,
   ringGemSwatchChipDefault,
   ringGemSwatchChipSelected,
+  ringGemSwatchChipDefaultMobile,
+  ringGemSwatchChipSelectedMobile,
   stepLabelClassForCategory,
 } from "@/lib/chromeUi";
 import BarSlider, { type SliderTrackMode } from "./BarSlider";
@@ -24,7 +29,7 @@ import BarSlider, { type SliderTrackMode } from "./BarSlider";
 /** Read-only header cells (no pointer/hover — not buttons). */
 function gemstoneHeaderCellClass(): string {
   return (
-    "flex h-[30px] min-w-0 w-full items-center justify-center border-0 px-3 text-center text-[14px] font-bold leading-none lowercase shadow-none outline-none pointer-events-none select-none tracking-normal bg-[#ffffff] text-[#2a2c2d]"
+    "flex h-[30px] min-w-0 w-full items-center justify-center border-0 px-3 text-center text-[14px] font-bold leading-none lowercase shadow-none outline-none pointer-events-none select-none tracking-normal text-[#2a2c2d]"
   );
 }
 
@@ -39,6 +44,8 @@ interface GemstoneStepProps {
   showLabel?: boolean;
   /** When true, swatches render in a single scrollable row (mobile panels). */
   singleRow?: boolean;
+  /** When true, use mobile class variants (no hover/active colour changes). */
+  mobile?: boolean;
 }
 
 export default function GemstoneStep({
@@ -47,6 +54,7 @@ export default function GemstoneStep({
   sliderTrackMode = "default",
   showLabel = true,
   singleRow = false,
+  mobile = false,
 }: GemstoneStepProps) {
   const showColours = variant ? variantUsesGemColour(variant) : false;
   const showSliders = variant ? variantHasGemSliders(variant) : false;
@@ -65,13 +73,13 @@ export default function GemstoneStep({
           >
             <div
               className={gemstoneHeaderCellClass()}
-              style={CHROME_HEADER_FONT}
+              style={{ ...CHROME_HEADER_FONT, backgroundColor: "#ffffff" }}
             >
               Gemstone
             </div>
             <div
               className={gemstoneHeaderCellClass()}
-              style={CHROME_HEADER_FONT}
+              style={{ ...CHROME_HEADER_FONT, backgroundColor: "#ffffff" }}
               title={selectedGem?.label}
             >
               {selectedGem ? (
@@ -112,13 +120,13 @@ export default function GemstoneStep({
           {GEMSTONES.map((gem) => {
             const active = selected === gem.id;
             const chipBase = isPendantGem
-              ? active
-                ? pendantGemSwatchChipSelected
-                : chromeChipInactivePendant
+              ? mobile
+                ? (active ? pendantGemSwatchChipSelectedMobile : pendantGemSwatchChipDefaultMobile)
+                : (active ? pendantGemSwatchChipSelected : chromeChipInactivePendant)
               : isRingGem
-                ? active
-                  ? ringGemSwatchChipSelected
-                  : ringGemSwatchChipDefault
+                ? mobile
+                  ? (active ? ringGemSwatchChipSelectedMobile : ringGemSwatchChipDefaultMobile)
+                  : (active ? ringGemSwatchChipSelected : ringGemSwatchChipDefault)
                 : chromeChipInactive;
             return (
               <button
@@ -126,7 +134,9 @@ export default function GemstoneStep({
                 type="button"
                 onClick={() => onSelect(gem.id)}
                 title={gem.label}
-                className={`${chipBase} !h-[30px] !min-h-[30px] !min-w-[30px] !w-[30px] shrink-0 !p-0 shadow-none`}
+                className={`${chipBase} !h-[30px] !min-h-[30px] !min-w-[30px] !w-[30px] shrink-0 !p-0 shadow-none chip-hover`}
+                style={{ color: "#2a2c2d", backgroundColor: active ? "#d9d9d9" : "#ffffff", ["--btn-bg" as string]: active ? "#d9d9d9" : "#ffffff", ["--btn-color" as string]: "#2a2c2d" }}
+                data-active={active ? "true" : undefined}
               >
                 <span
                   className="block h-4 w-4 shrink-0"

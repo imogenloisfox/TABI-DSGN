@@ -84,6 +84,8 @@ interface CustomiserExperienceProps {
   onRegisterActions?: (actions: CustomiserActions | null) => void;
   /** Fires when the save/export async operation starts (true) and finishes (false). */
   onSavingChange?: (saving: boolean) => void;
+  /** Fires whenever the active variant changes (toolbar, remix) — lets App keep mobile pills in sync. */
+  onVariantChange?: (variant: ProductVariant | null) => void;
 }
 
 export default function CustomiserExperience({
@@ -95,6 +97,7 @@ export default function CustomiserExperience({
   remixSignal = null,
   onRegisterActions,
   onSavingChange,
+  onVariantChange,
 }: CustomiserExperienceProps) {
   const [state, setState] = useState<CustomiserState>(() => buildInitialState(initialCategory, initialVariant));
   const [isGenerating, setIsGenerating] = useState(false);
@@ -102,14 +105,46 @@ export default function CustomiserExperience({
   // Notify parent (App → SiteHeader) when save state changes
   useEffect(() => { onSavingChange?.(isGenerating); }, [isGenerating, onSavingChange]);
 
+  // Notify parent whenever variant changes (toolbar, remix) so mobile pills stay in sync
+  useEffect(() => { onVariantChange?.(state.variant); }, [state.variant, onVariantChange]);
+
   const [cameraResetSignal] = useState(0);
 
   // 5ms pulse — noticeable but subtle on supported devices; silently no-ops elsewhere.
   const haptic = useCallback(() => { navigator.vibrate?.(5); }, []);
 
   // ── Mobile bottom tab bar + floating panels ──────────────────────────────
-  type MobileTab = "jewellery" | "gemstone" | "engraving" | "metal" | "size";
+  type MobileTab = "jewellery" | "variant" | "gemstone" | "engraving" | "metal" | "size";
   const [activeTab, setActiveTab] = useState<MobileTab | null>(null);
+  // For slide-down exit: keep the panel mounted during close animation
+  const [renderedTab, setRenderedTab] = useState<MobileTab | null>(null);
+  const [panelExiting, setPanelExiting] = useState(false);
+  const panelExitTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const closePanel = useCallback(() => {
+    if (!renderedTab) return;
+    setPanelExiting(true);
+    panelExitTimerRef.current = setTimeout(() => {
+      setRenderedTab(null);
+      setPanelExiting(false);
+    }, 300);
+  }, [renderedTab]);
+
+  // Sync activeTab → renderedTab, handling open/switch/close
+  useEffect(() => {
+    if (panelExitTimerRef.current) {
+      clearTimeout(panelExitTimerRef.current);
+      panelExitTimerRef.current = null;
+    }
+    if (activeTab) {
+      setPanelExiting(false);
+      setRenderedTab(activeTab);
+    } else {
+      closePanel();
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeTab]);
+
   const toggleTab = useCallback((tab: MobileTab) => {
     haptic();
     setActiveTab((prev) => (prev === tab ? null : tab));
@@ -361,6 +396,16 @@ export default function CustomiserExperience({
 
   const toolbarCategory: ProductCategory = state.category ?? "ring";
 
+  // Count visible mobile footer tabs so ring-size chip row can match the strip width exactly
+  const visibleTabCount = [
+    true, // jewellery always visible
+    !!state.category && state.category !== "earrings", // variant (ring/pendant)
+    !!state.variant && (isEarrings || (productUsesGemstone(state.variant) && variantUsesGemColour(state.variant))), // gemstone
+    !!state.variant, // engraving
+    !!state.variant, // metal
+    isRing, // size
+  ].filter(Boolean).length;
+
   /** Bumps after chrome height settles (debounced — avoids spamming resync while padding tracks each frame). */
   const [previewLayoutEpoch, setPreviewLayoutEpoch] = useState(0);
   const layoutEpochSkipMountRef = useRef(false);
@@ -390,8 +435,8 @@ export default function CustomiserExperience({
             {/* Desktop sidebar — hidden on mobile */}
             <aside
               id="customiser-sidebar"
-              className="hidden md:flex shrink-0 flex-col overflow-hidden bg-[#e9e9e9] h-full w-[300px]"
-              style={{ paddingTop: `calc(1rem + ${leftChromeStackPx}px)` }}
+              className="hidden md:flex shrink-0 flex-col overflow-hidden bg-[#e9e9e9] h-full w-[275px]"
+              style={{ paddingTop: `calc(1rem + ${leftChromeStackPx}px + 30px)` }}
             >
               <div className="min-h-0 flex-1 overflow-y-auto px-4">
                 <div className={SIDEBAR_CONTROL_COLUMN}>
@@ -446,7 +491,7 @@ export default function CustomiserExperience({
                     <div className={`${SIDEBAR_BUTTON_ROW_2} py-0`}>
                       <VanishButton
                         onClick={resetAll}
-                        className={`${customiserToolbarActionPillClass(toolbarCategory)} min-w-0`}
+                        className={`${customiserToolbarActionPillClass(toolbarCategory, "reset")} min-w-0`}
                         style={{ ...CHROME_HEADER_FONT, boxShadow: "none" }}
                       >
                         reset
@@ -454,7 +499,7 @@ export default function CustomiserExperience({
                       <VanishButton
                         onClick={handleExportSpec}
                         disabled={isGenerating}
-                        className={`${customiserToolbarActionPillClass(toolbarCategory)} min-w-0 ${
+                        className={`${customiserToolbarActionPillClass(toolbarCategory, "save")} min-w-0 ${
                           isGenerating ? "truncate" : ""
                         } disabled:cursor-wait disabled:opacity-50`}
                         style={{ ...CHROME_HEADER_FONT, boxShadow: "none" }}
@@ -468,87 +513,120 @@ export default function CustomiserExperience({
               </div>
             </aside>
 
-            {/* ── Mobile floating panel — content over canvas, opacity fade ── */}
-            {activeTab && (
+            {/* ── Mobile backdrop — tapping outside panel closes it ── */}
+            {renderedTab && (
               <div
-                key={activeTab}
-                className="fixed bottom-[calc(30px+8px+env(safe-area-inset-bottom))] left-4 z-30 md:hidden"
+                className="fixed inset-0 z-20 md:hidden"
+                onClick={() => setActiveTab(null)}
+              />
+            )}
+
+            {/* ── Mobile floating panel — slides up on open, down on close ── */}
+            {renderedTab && (
+              <div
+                key={renderedTab}
+                className="mobile-ui-panel fixed bottom-[calc(30px+16px+env(safe-area-inset-bottom))] left-4 z-30 md:hidden"
                 style={{
-                  animation: "mobileTabFadeIn 0.2s ease both",
+                  opacity: panelExiting ? 0 : 1,
+                  transform: panelExiting ? "translateY(12px)" : "translateY(0)",
+                  transition: panelExiting
+                    ? "opacity 300ms cubic-bezier(0.76,0,0.24,1), transform 300ms cubic-bezier(0.76,0,0.24,1)"
+                    : undefined,
+                  animation: !panelExiting ? "mobileTabFadeIn 300ms cubic-bezier(0.76,0,0.24,1) both" : undefined,
                 }}
               >
-                {activeTab === "jewellery" && (
+                {renderedTab === "jewellery" && (
+                  <ProductSelector
+                    selectedCategory={state.category}
+                    selectedVariant={state.variant}
+                    onSelect={(cat, variant) => { setVariant(cat, variant); if (cat === "earrings") setActiveTab(null); else setActiveTab("variant"); }}
+                    showLabel={false}
+                    mobileLayout
+                    categoriesOnly
+                    mobile
+                  />
+                )}
+                {renderedTab === "variant" && state.category && state.category !== "earrings" && (
                   <ProductSelector
                     selectedCategory={state.category}
                     selectedVariant={state.variant}
                     onSelect={setVariant}
                     showLabel={false}
-                    reverseRows
                     mobileLayout
+                    variantsOnly
+                    mobile
                   />
                 )}
-                {activeTab === "gemstone" && state.variant && !isEarrings && productUsesGemstone(state.variant) && (
-                  <GemstoneStep
-                    category={state.category}
-                    variant={state.variant}
-                    selected={state.gemstone}
-                    onSelect={setGemstone}
-                    gemPosition={state.gemPosition}
-                    onGemPositionChange={setGemPosition}
-                    sliderTrackMode={sliderTrackMode}
-                    showLabel={false}
-                    singleRow
-                  />
-                )}
-                {activeTab === "gemstone" && isEarrings && (
-                  <div className="flex w-[240px] flex-col gap-0">
-                    <BarSlider label="Gem L X" value={state.gemPositionLeft.x} min={EARRING_GEM_BOUNDS.minX} max={EARRING_GEM_BOUNDS.maxX} step={0.01} trackMode={sliderTrackMode} onChange={(v) => setGemPositionLeft({ ...state.gemPositionLeft, x: v })} />
-                    <BarSlider label="Gem L Y" value={state.gemPositionLeft.y} min={EARRING_GEM_BOUNDS.minY} max={EARRING_GEM_BOUNDS.maxY} step={0.01} trackMode={sliderTrackMode} onChange={(v) => setGemPositionLeft({ ...state.gemPositionLeft, y: v })} />
-                    <BarSlider label="Gem R X" value={state.gemPositionRight.x} min={EARRING_GEM_BOUNDS.minX} max={EARRING_GEM_BOUNDS.maxX} step={0.01} trackMode={sliderTrackMode} onChange={(v) => setGemPositionRight({ ...state.gemPositionRight, x: v })} />
-                    <BarSlider label="Gem R Y" value={state.gemPositionRight.y} min={EARRING_GEM_BOUNDS.minY} max={EARRING_GEM_BOUNDS.maxY} step={0.01} trackMode={sliderTrackMode} onChange={(v) => setGemPositionRight({ ...state.gemPositionRight, y: v })} />
+                {renderedTab === "gemstone" && state.variant && !isEarrings && productUsesGemstone(state.variant) && (
+                  <div style={{ backgroundColor: "#b1b1b1" }}>
+                    <GemstoneStep
+                      category={state.category}
+                      variant={state.variant}
+                      selected={state.gemstone}
+                      onSelect={setGemstone}
+                      gemPosition={state.gemPosition}
+                      onGemPositionChange={setGemPosition}
+                      sliderTrackMode="mobileEngraving"
+                      showLabel={false}
+                      singleRow
+                      mobile
+                    />
                   </div>
                 )}
-                {activeTab === "engraving" && state.variant && (
-                  <InitialStep
-                    category={state.category}
-                    variant={state.variant}
-                    autoFocusFirstEngraving={false}
-                    value={state.engraving}
-                    onChange={setEngraving}
-                    valueLeft={state.engravingLeft}
-                    onChangeLeft={setEngravingLeft}
-                    valueRight={state.engravingRight}
-                    onChangeRight={setEngravingRight}
-                    gemPositionLeft={state.gemPositionLeft}
-                    onGemPositionLeftChange={setGemPositionLeft}
-                    gemPositionRight={state.gemPositionRight}
-                    onGemPositionRightChange={setGemPositionRight}
-                    outOfBounds={isEarrings ? false : (engravingTextures?.isOutOfBounds ?? false)}
-                    outOfBoundsLeft={isEarrings ? (earringLeftTextures?.isOutOfBounds ?? false) : false}
-                    outOfBoundsRight={isEarrings ? (earringRightTextures?.isOutOfBounds ?? false) : false}
-                    sliderTrackMode={sliderTrackMode}
-                    slidersFirst
-                    compact
-                    showLabel={false}
-                    hideGemPositionSliders={isEarrings}
-                  />
+                {renderedTab === "gemstone" && isEarrings && (
+                  <div className="flex w-[240px] flex-col gap-0" style={{ backgroundColor: "#b1b1b1" }}>
+                    <BarSlider label="Gem L X" value={state.gemPositionLeft.x} min={EARRING_GEM_BOUNDS.minX} max={EARRING_GEM_BOUNDS.maxX} step={0.01} trackMode="mobileEngraving" onChange={(v) => setGemPositionLeft({ ...state.gemPositionLeft, x: v })} />
+                    <BarSlider label="Gem L Y" value={state.gemPositionLeft.y} min={EARRING_GEM_BOUNDS.minY} max={EARRING_GEM_BOUNDS.maxY} step={0.01} trackMode="mobileEngraving" onChange={(v) => setGemPositionLeft({ ...state.gemPositionLeft, y: v })} />
+                    <BarSlider label="Gem R X" value={state.gemPositionRight.x} min={EARRING_GEM_BOUNDS.minX} max={EARRING_GEM_BOUNDS.maxX} step={0.01} trackMode="mobileEngraving" onChange={(v) => setGemPositionRight({ ...state.gemPositionRight, x: v })} />
+                    <BarSlider label="Gem R Y" value={state.gemPositionRight.y} min={EARRING_GEM_BOUNDS.minY} max={EARRING_GEM_BOUNDS.maxY} step={0.01} trackMode="mobileEngraving" onChange={(v) => setGemPositionRight({ ...state.gemPositionRight, y: v })} />
+                  </div>
                 )}
-                {activeTab === "metal" && state.variant && (
+                {renderedTab === "engraving" && state.variant && (
+                  <div style={{ backgroundColor: "#b1b1b1" }}>
+                    <InitialStep
+                      category={state.category}
+                      variant={state.variant}
+                      autoFocusFirstEngraving={false}
+                      value={state.engraving}
+                      onChange={setEngraving}
+                      valueLeft={state.engravingLeft}
+                      onChangeLeft={setEngravingLeft}
+                      valueRight={state.engravingRight}
+                      onChangeRight={setEngravingRight}
+                      gemPositionLeft={state.gemPositionLeft}
+                      onGemPositionLeftChange={setGemPositionLeft}
+                      gemPositionRight={state.gemPositionRight}
+                      onGemPositionRightChange={setGemPositionRight}
+                      outOfBounds={isEarrings ? false : (engravingTextures?.isOutOfBounds ?? false)}
+                      outOfBoundsLeft={isEarrings ? (earringLeftTextures?.isOutOfBounds ?? false) : false}
+                      outOfBoundsRight={isEarrings ? (earringRightTextures?.isOutOfBounds ?? false) : false}
+                      sliderTrackMode="mobileEngraving"
+                      slidersFirst
+                      compact
+                      showLabel={false}
+                      hideGemPositionSliders={isEarrings}
+                    />
+                  </div>
+                )}
+                {renderedTab === "metal" && state.variant && (
                   <FinishStep
                     category={state.category}
                     selected={state.finish}
                     onSelect={setFinish}
                     showLabel={false}
                     fixedWidth
+                    mobile
                   />
                 )}
 
-                {activeTab === "size" && isRing && (
+                {renderedTab === "size" && isRing && (
                   <RingSizeStep
                     selected={state.ringSize}
                     onSelect={setRingSize}
                     showLabel={false}
                     mobileLayout
+                    mobile
+                    mobileRowWidthPx={visibleTabCount * 80}
                   />
                 )}
 
@@ -557,38 +635,35 @@ export default function CustomiserExperience({
 
             {/* ── Mobile tab bar — fixed bottom, left-aligned pill tabs ── */}
             <div
-              className="fixed inset-x-0 bottom-0 z-40 flex items-end gap-0 bg-transparent pl-4 md:hidden"
-              style={{ paddingBottom: "calc(8px + env(safe-area-inset-bottom))" }}
+              className="mobile-ui-footer fixed inset-x-0 bottom-0 z-40 flex items-end gap-0 bg-transparent pl-4 md:hidden"
+              style={{ paddingBottom: "calc(16px + env(safe-area-inset-bottom))" }}
             >
               {(
                 [
-                  { id: "jewellery" as MobileTab, label: "jewellery", w: "w-[80px]", show: true },
-                  { id: "gemstone" as MobileTab, label: "gemstone", w: "w-[80px]", show: !!state.variant && (isEarrings || (productUsesGemstone(state.variant) && variantUsesGemColour(state.variant!))) },
-                  { id: "engraving" as MobileTab, label: "engraving", w: "w-[80px]", show: !!state.variant },
-                  { id: "metal" as MobileTab, label: "metal", w: "w-[80px]", show: !!state.variant },
-                  { id: "size" as MobileTab, label: "ring size", w: "w-[80px]", show: isRing },
+                  { id: "jewellery" as MobileTab, label: "jewellery", w: "w-[80px]", bg: "#FFFFFF", show: true },
+                  { id: "variant" as MobileTab, label: state.category === "ring" ? "ring" : state.category === "pendant" ? "pendant" : "", w: "w-[80px]", bg: "#FFFFFF", show: !!state.category && state.category !== "earrings" },
+                  { id: "gemstone" as MobileTab, label: "gemstone", w: "w-[80px]", bg: "#D9D9D9", show: !!state.variant && (isEarrings || (productUsesGemstone(state.variant) && variantUsesGemColour(state.variant!))) },
+                  { id: "engraving" as MobileTab, label: "engraving", w: "w-[80px]", bg: "#B1B1B1", show: !!state.variant },
+                  { id: "metal" as MobileTab, label: "metal", w: "w-[80px]", bg: "#8D8D8D", show: !!state.variant },
+                  { id: "size" as MobileTab, label: "ring size", w: "w-[80px]", bg: "#676767", show: isRing },
                 ] as const
               )
                 .filter((t) => t.show)
                 .map((t) => (
-                  <button
+                  <VanishButton
                     key={t.id}
-                    type="button"
                     onClick={() => toggleTab(t.id)}
-                    className={`inline-flex h-[30px] ${t.w} shrink-0 items-center justify-center border-0 text-[14px] font-bold lowercase shadow-none outline-none transition-colors duration-150 ${
-                      activeTab === t.id
-                        ? "bg-[#2a2c2d] text-white"
-                        : "bg-white text-[#2a2c2d]"
-                    }`}
-                    style={CHROME_HEADER_FONT}
+                    className={`inline-flex h-[30px] ${t.w} shrink-0 items-center justify-center border-0 text-[14px] font-bold lowercase shadow-none outline-none text-[#2a2c2d] mobile-btn-hover${/^#d9d9d9$/i.test(t.bg) ? " mobile-btn-hover-d9" : /^#ffffff$/i.test(t.bg) ? " mobile-btn-hover-f" : /^#b1b1b1$/i.test(t.bg) ? " mobile-btn-hover-b1" : ""}`}
+                    style={{ ...CHROME_HEADER_FONT, backgroundColor: t.bg, color: activeTab === t.id ? "#e9e9e9" : "#2a2c2d", ["--btn-bg" as string]: t.bg, ["--btn-color" as string]: "#2a2c2d" }}
+                    data-active={activeTab === t.id ? "true" : undefined}
                   >
                     {t.label}
-                  </button>
+                  </VanishButton>
                 ))}
             </div>
 
             {/* Canvas — pb clears mobile tab bar (30px pill + 16px padding + safe-area); desktop full height */}
-            <main className="relative min-h-0 min-w-0 flex-1 overflow-hidden bg-[#e9e9e9] pb-[calc(46px+env(safe-area-inset-bottom))] md:!pb-0">
+            <main className="relative flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden bg-[#e9e9e9] pb-[calc(30px+16px+env(safe-area-inset-bottom))] md:!pb-0">
               <PreviewStage
                 variant={state.variant}
                 finish={state.finish}
@@ -603,7 +678,6 @@ export default function CustomiserExperience({
                 onCaptureReady={handleCaptureReady}
                 cameraResetSignal={cameraResetSignal}
                 previewLayoutEpoch={previewLayoutEpoch}
-                leftChromeStackPx={leftChromeStackPx}
               />
 
               {/* Out-of-bounds advisory — bottom centre; tap to dismiss until text or variant changes */}
@@ -627,10 +701,10 @@ export default function CustomiserExperience({
               {isGenerating && (
                 <div className="pointer-events-none absolute inset-0 flex items-center justify-center bg-background/70 backdrop-blur-sm">
                   <div className="border-0 bg-[#ffffff] px-5 py-3 shadow-none" style={CHROME_HEADER_FONT}>
-                    <p className="text-[14px] font-bold tracking-normal text-[#7a7a7a]">
+                    <p className="text-[14px] font-bold tracking-normal text-[#676767]">
                       Saving PDF…
                     </p>
-                    <p className="mt-1 text-[10px] font-bold tracking-normal text-[#7a7a7a]">
+                    <p className="mt-1 text-[10px] font-bold tracking-normal text-[#676767]">
                       Please do not interact with the canvas
                     </p>
                   </div>

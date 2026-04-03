@@ -6,7 +6,7 @@ import {
   useEffect,
   useLayoutEffect,
   useRef,
-
+  type ReactNode,
 } from "react";
 import type { CustomiserActions } from "./customiser/CustomiserExperience";
 import type { ProductCategory, ProductVariant } from "@/lib/customiser/types";
@@ -17,6 +17,7 @@ import CustomiserExperience from "./customiser/CustomiserExperience";
 import SiteHeader, { ProductStrip } from "./layout/SiteHeader";
 import InfoColumns from "./ui/InfoColumns";
 import PlayHintPanel from "./ui/PlayHintPanel";
+import PreviewShopPills from "./preview/PreviewShopPills";
 import {
   FLOATING_PANEL_MOTION_MS,
   FLOATING_PANEL_EASING,
@@ -28,59 +29,101 @@ type Panel = "info" | "play";
 const LEFT_CHROME_PILL_ROW_PX = 30;
 
 /**
- * Accordion shell — info/play panels share one container; max-height transition
- * drives open/close. All moving elements share the same 0.3s easing so nothing lags.
+ * Single accordion panel — each panel (info/play) gets its own instance so both
+ * can animate simultaneously when switching: one collapses while the other expands.
  */
-function FloatingPanels({ panel }: { panel: Panel | null }) {
-  const [display, setDisplay] = useState<Panel | null>(panel);
+function FloatingPanel({
+  id,
+  label,
+  isOpen,
+  onHeight,
+  children,
+}: {
+  id: string;
+  label: string;
+  isOpen: boolean;
+  onHeight?: (h: number) => void;
+  children: ReactNode;
+}) {
+  const [mounted, setMounted] = useState(isOpen);
+  const contentRef = useRef<HTMLDivElement>(null);
+  const [contentHeight, setContentHeight] = useState(0);
 
+  // Mount immediately on open; keep mounted during close animation, then unmount.
   useEffect(() => {
-    if (panel !== null) {
-      setDisplay(panel);
-      return;
+    if (isOpen) {
+      setMounted(true);
+    } else {
+      const id = window.setTimeout(() => setMounted(false), FLOATING_PANEL_MOTION_MS);
+      return () => clearTimeout(id);
     }
-    // Keep DOM mounted during close animation, then unmount
-    const id = window.setTimeout(() => setDisplay(null), FLOATING_PANEL_MOTION_MS);
-    return () => clearTimeout(id);
-  }, [panel]);
+  }, [isOpen]);
 
-  const isOpen = panel !== null;
-  const showContent = display !== null;
+  // Measure whenever content mounts or resizes (font load, wrap, breakpoint) so max-height never clips.
+  useLayoutEffect(() => {
+    const el = contentRef.current;
+    if (!el) return;
+    const measure = () => {
+      const h = el.getBoundingClientRect().height;
+      setContentHeight(h);
+      onHeight?.(h);
+    };
+    measure();
+    const ro = new ResizeObserver(measure);
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, [mounted, onHeight]);
 
   const transition = `max-height ${FLOATING_PANEL_MOTION_MS}ms ${FLOATING_PANEL_EASING}`;
 
   return (
     <div
-      className="w-max max-w-full overflow-hidden"
+      id={id}
+      role="region"
+      aria-label={label}
+      aria-hidden={!isOpen}
+      className="overflow-hidden"
       style={{
-        maxHeight: isOpen ? 300 : 0,
+        maxHeight: isOpen ? contentHeight : 0,
         transition,
       }}
-      aria-hidden={!isOpen}
     >
-      {showContent && (
-        <div className="relative w-max max-w-full">
-          <div
-            id="site-info-columns"
-            role="region"
-            aria-label="About this tool"
-            aria-hidden={display !== "info"}
-            className={display === "info" ? "pointer-events-auto" : "hidden"}
-          >
-            <InfoColumns />
-          </div>
-          <div
-            id="site-play-hint"
-            role="region"
-            aria-label="How to use the home screen"
-            aria-hidden={display !== "play"}
-            className={display === "play" ? "pointer-events-auto" : "hidden"}
-          >
-            <PlayHintPanel />
-          </div>
+      {mounted && (
+        <div ref={contentRef}>
+          {children}
         </div>
       )}
     </div>
+  );
+}
+
+/** Stacks info and play panels; each animates independently so switching is simultaneous. */
+function FloatingPanels({
+  panel,
+  onPanelHeight,
+}: {
+  panel: Panel | null;
+  onPanelHeight?: (h: number) => void;
+}) {
+  return (
+    <>
+      <FloatingPanel
+        id="site-info-columns"
+        label="About this tool"
+        isOpen={panel === "info"}
+        onHeight={panel === "info" ? onPanelHeight : undefined}
+      >
+        <InfoColumns />
+      </FloatingPanel>
+      <FloatingPanel
+        id="site-play-hint"
+        label="How to use the home screen"
+        isOpen={panel === "play"}
+        onHeight={panel === "play" ? onPanelHeight : undefined}
+      >
+        <PlayHintPanel />
+      </FloatingPanel>
+    </>
   );
 }
 
@@ -91,10 +134,13 @@ export default function App() {
   const [transitioning, setTransitioning]       = useState(false);
   const [activePanel, setActivePanel]           = useState<Panel | null>(null);
   const [remixSignal, setRemixSignal]           = useState<{ preset: RemixPreset; epoch: number } | null>(null);
+  const remixQueueRef    = useRef<RemixPreset[]>([]);
+  const lastActionWasRemixRef = useRef(false);
   /** Increment when returning to showcase so homepage re-rolls gems (reliable vs `exiting` edge timing). */
   const [showcaseGemEpoch, setShowcaseGemEpoch] = useState(0);
   const [customiserActions, setCustomiserActions] = useState<CustomiserActions | null>(null);
   const [isSaving, setIsSaving] = useState(false);
+  const [liveVariant, setLiveVariant] = useState<ProductVariant | null>(null);
   const leftGroupRef = useRef<HTMLDivElement>(null);
   const [leftChromeStackPx, setLeftChromeStackPx] = useState(LEFT_CHROME_PILL_ROW_PX);
 
@@ -110,12 +156,14 @@ export default function App() {
 
   const handlePieceClick = useCallback((category: ProductCategory, variant: ProductVariant) => {
     if (transitioning) return;
+    lastActionWasRemixRef.current = false;
     setTransitioning(true);
     setActivePanel(null);
     setTimeout(() => {
       setRemixSignal(null);
       setSelectedCategory(category);
       setSelectedVariant(variant);
+      setLiveVariant(variant);
       setView("customiser");
       setTransitioning(false);
     }, 550);
@@ -123,12 +171,14 @@ export default function App() {
 
   const handleBack = useCallback(() => {
     if (transitioning) return;
+    lastActionWasRemixRef.current = false;
     setTransitioning(true);
     setActivePanel(null);
     setTimeout(() => {
       setView("showcase");
       setSelectedCategory(null);
       setSelectedVariant(null);
+      setLiveVariant(null);
       setRemixSignal(null);
       setShowcaseGemEpoch((e) => e + 1);
       setTransitioning(false);
@@ -136,11 +186,35 @@ export default function App() {
   }, [transitioning]);
 
   const handleRemix = useCallback(() => {
-    const currentId = remixSignal?.preset.id;
-    const pool = REMIX_PRESETS.length > 1
-      ? REMIX_PRESETS.filter((p) => p.id !== currentId)
-      : REMIX_PRESETS;
-    const preset = pool[Math.floor(Math.random() * pool.length)];
+    if (REMIX_PRESETS.length === 0) return;
+    let preset: RemixPreset;
+    if (!lastActionWasRemixRef.current) {
+      // First click after doing something else — pick randomly, then build a shuffled queue of the rest
+      const currentId = remixSignal?.preset.id;
+      const others = REMIX_PRESETS.length > 1 ? REMIX_PRESETS.filter((p) => p.id !== currentId) : REMIX_PRESETS;
+      const idx = Math.floor(Math.random() * others.length);
+      preset = others[idx];
+      // Queue = remaining presets (excluding the one just picked) in shuffled order
+      const remaining = others.filter((_, i) => i !== idx);
+      for (let i = remaining.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [remaining[i], remaining[j]] = [remaining[j], remaining[i]];
+      }
+      remixQueueRef.current = remaining;
+    } else {
+      // Consecutive remix click — pull next from queue, refill when exhausted
+      if (remixQueueRef.current.length === 0) {
+        const currentId = remixSignal?.preset.id;
+        const pool = REMIX_PRESETS.filter((p) => p.id !== currentId);
+        for (let i = pool.length - 1; i > 0; i--) {
+          const j = Math.floor(Math.random() * (i + 1));
+          [pool[i], pool[j]] = [pool[j], pool[i]];
+        }
+        remixQueueRef.current = pool;
+      }
+      preset = remixQueueRef.current.shift()!;
+    }
+    lastActionWasRemixRef.current = true;
     setRemixSignal((prev) => ({ preset, epoch: (prev?.epoch ?? 0) + 1 }));
   }, [remixSignal]);
 
@@ -156,6 +230,7 @@ export default function App() {
   const showPlay = view === "showcase";
   const floatingPanel: Panel | null =
     activePanel === "play" && !showPlay ? null : activePanel;
+
 
   const overlayOpen =
     activePanel === "info" || (showPlay && activePanel === "play");
@@ -210,11 +285,18 @@ export default function App() {
             onBack={view === "customiser" ? handleBack : undefined}
             showRemixButton={view === "customiser"}
             onRemix={handleRemix}
-            onSave={customiserActions?.save}
+            onSave={customiserActions?.save ? () => { lastActionWasRemixRef.current = false; customiserActions.save(); } : undefined}
             isSaving={isSaving}
-            onReset={customiserActions?.reset}
+            onReset={customiserActions?.reset ? () => { lastActionWasRemixRef.current = false; customiserActions.reset(); } : undefined}
           />
         </div>
+
+        {/* Mobile price/buy — inside the flex column so the panel pushes them down naturally */}
+        {view === "customiser" && (
+          <div className="shrink-0 md:hidden">
+            <PreviewShopPills variant={liveVariant} />
+          </div>
+        )}
       </div>
 
       {/* Always mounted — prevents HDRI/GLB reload on back-navigation */}
@@ -234,6 +316,7 @@ export default function App() {
           remixSignal={remixSignal}
           onRegisterActions={setCustomiserActions}
           onSavingChange={setIsSaving}
+          onVariantChange={setLiveVariant}
         />
       )}
     </div>

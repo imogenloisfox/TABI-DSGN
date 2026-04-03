@@ -67,7 +67,7 @@ function TintPreview({ tintCanvas, value }: { tintCanvas: HTMLCanvasElement; val
   return (
     <canvas
       ref={previewRef}
-      className="mt-0 w-full border border-[#7a7a7a]/40"
+      className="mt-0 w-full border border-[#676767]/40"
       style={{ imageRendering: "pixelated" }}
     />
   );
@@ -136,7 +136,7 @@ function EngravingSection({
 
   const cursorColor = "#2a2c2d";
 
-  const textareaHeight = isEarring ? "h-[44px]" : compact ? "h-[48px]" : "h-[96px]";
+  const textareaHeight = isEarring ? "h-[40px]" : compact ? "h-[48px]" : "h-[96px]";
 
   const textareaBlock = (
     <div
@@ -244,16 +244,16 @@ function GemPositionSliders({
   return (
     <div className="mt-0 flex w-[240px] flex-col gap-0 pt-0">
       <p className={labelClassName} style={CHROME_LABEL_FONT}>
-        Gem position
+        Gemstone
       </p>
       <BarSlider
-        label="Gem X" value={position.x}
+        label="Pos X" value={position.x}
         min={EARRING_GEM_BOUNDS.minX} max={EARRING_GEM_BOUNDS.maxX} step={0.01}
         trackMode={sliderTrackMode}
         onChange={(v) => onChange({ ...position, x: v })}
       />
       <BarSlider
-        label="Gem Y" value={position.y}
+        label="Pos Y" value={position.y}
         min={EARRING_GEM_BOUNDS.minY} max={EARRING_GEM_BOUNDS.maxY} step={0.01}
         trackMode={sliderTrackMode}
         onChange={(v) => onChange({ ...position, y: v })}
