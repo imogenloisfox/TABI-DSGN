@@ -23,6 +23,7 @@ import {
   variantUsesGemColour,
 } from "@/lib/customiser/types";
 import { createShopifyCart, addToCartFormPost } from "@/lib/shopify/createCart";
+import { upload } from "@vercel/blob/client";
 import { getShopifyProductUrl } from "@/lib/shopifyProductUrl";
 import { buildStateFromPreset, captureCurrentAsPreset } from "@/lib/remixPresets";
 import type { RemixPreset } from "@/lib/remixPresets";
@@ -381,114 +382,68 @@ export default function CustomiserExperience({
       win.document.close();
     }
 
-    // Run spec generation + uploads IN PARALLEL with Shopify cart creation.
-    // The cart creation doesn't need the URLs upfront — we'll update the cart
-    // attributes after if needed, but for now we race them and use whatever
-    // finishes in time.
-
-    // Task A: capture design preview + generate spec PDF + upload both
-    const uploadTask = (async (): Promise<{ specPdfUrl: string | null; previewUrl: string | null }> => {
-      let specPdfUrl: string | null = null;
-      let previewUrl: string | null = null;
-      try {
-        let heroFrontView: string | null = null;
-        let renderViews: { front: string; left: string; right: string } | null = null;
-        if (captureHandleRef.current) {
-          heroFrontView = await captureHandleRef.current.captureHeroFront();
-          renderViews   = await captureHandleRef.current.captureAngles();
-        }
-
-        // Upload design preview (hero front capture)
-        const previewUpload = heroFrontView
-          ? (async () => {
-              const res = await fetch(heroFrontView);
-              const blob = await res.blob();
-              const form = new FormData();
-              form.append("file", blob, "design.png");
-              const uploadRes = await fetch("/api/upload-spec", { method: "POST", body: form });
-              if (uploadRes.ok) {
-                const data = (await uploadRes.json()) as { url: string };
-                previewUrl = data.url;
-              }
-            })()
-          : Promise.resolve();
-
-        // Generate + upload spec PDF
-        const bumpCanvas      = isEarrings ? (earringLeftTextures?.bumpCanvas  ?? null) : (engravingTextures?.bumpCanvas    ?? null);
-        const bumpCanvasRight = isEarrings ? (earringRightTextures?.bumpCanvas ?? null) : undefined;
-        const variant         = state.variant;
-        const engTarget       = isEarrings ? "earringLeft" as const : variant?.startsWith("pendant") ? "pendant" as const : "ring" as const;
-        const { w, h }        = CANVAS_SIZE[engTarget];
-        const engraving       = isEarrings ? state.engravingLeft : state.engraving;
-
-        const specUpload = (async () => {
-          const pdfBlob = await exportSpecSheet({
-            variant,
-            heroFrontView,
-            finish:            state.finish,
-            gemstoneLabel:     variant && productUsesGemstone(variant) && state.gemstone ? (getGemstone(state.gemstone)?.label ?? null) : null,
-            ringSize:          isRing ? (state.ringSize ?? null) : null,
-            engravingText:     engraving.text,
-            engravingOffsetX:  engraving.offsetX,
-            engravingOffsetY:  engraving.offsetY,
-            engravingFontSize: engraving.fontSize,
-            engravingRotation: engraving.rotation,
-            engravingSpacing:  engraving.lineSpacing,
-            engravingRightText:     isEarrings ? state.engravingRight.text        : undefined,
-            engravingRightOffsetX:  isEarrings ? state.engravingRight.offsetX     : undefined,
-            engravingRightOffsetY:  isEarrings ? state.engravingRight.offsetY     : undefined,
-            engravingRightFontSize: isEarrings ? state.engravingRight.fontSize    : undefined,
-            engravingRightRotation: isEarrings ? state.engravingRight.rotation    : undefined,
-            engravingRightSpacing:  isEarrings ? state.engravingRight.lineSpacing : undefined,
-            gemPosition:      !isEarrings ? state.gemPosition      : undefined,
-            gemPositionLeft:  isEarrings  ? state.gemPositionLeft  : undefined,
-            gemPositionRight: isEarrings  ? state.gemPositionRight : undefined,
-            renderViews,
-            bumpCanvas,
-            bumpCanvasRight,
-            canvasTarget: `${engTarget} (${w}×${h})`,
-            returnBlob: true,
-          });
-          if (pdfBlob instanceof Blob) {
-            const form = new FormData();
-            form.append("file", pdfBlob, "spec.pdf");
-            const uploadRes = await fetch("/api/upload-spec", { method: "POST", body: form });
-            if (uploadRes.ok) {
-              const data = (await uploadRes.json()) as { url: string };
-              specPdfUrl = data.url;
-            }
-          }
-        })();
-
-        await Promise.all([previewUpload, specUpload]);
-      } catch (err) {
-        console.error("[buy] Upload failed — continuing to checkout:", err);
+    // Step 1: Capture 3D renders, generate spec PDF, and upload it.
+    let specPdfUrl: string | null = null;
+    try {
+      let heroFrontView: string | null = null;
+      let renderViews: { front: string; left: string; right: string } | null = null;
+      if (captureHandleRef.current) {
+        heroFrontView = await captureHandleRef.current.captureHeroFront();
+        renderViews   = await captureHandleRef.current.captureAngles();
       }
-      return { specPdfUrl, previewUrl };
-    })();
 
-    // Task B: Create Shopify cart (runs in parallel with uploads)
-    const cartTask = createShopifyCart(state);
+      const bumpCanvas      = isEarrings ? (earringLeftTextures?.bumpCanvas  ?? null) : (engravingTextures?.bumpCanvas    ?? null);
+      const bumpCanvasRight = isEarrings ? (earringRightTextures?.bumpCanvas ?? null) : undefined;
+      const variant         = state.variant;
+      const engTarget       = isEarrings ? "earringLeft" as const : variant?.startsWith("pendant") ? "pendant" as const : "ring" as const;
+      const { w, h }        = CANVAS_SIZE[engTarget];
+      const engraving       = isEarrings ? state.engravingLeft : state.engraving;
 
-    // Wait for both to finish
-    const [uploads, checkoutUrl] = await Promise.all([uploadTask, cartTask]);
-
-    // If uploads succeeded but cart was created without them, the URLs are still
-    // attached as line item attributes on the next attempt. For now, if we got
-    // URLs, retry cart creation with them so they appear on the order.
-    let finalCheckoutUrl = checkoutUrl;
-    if ((uploads.specPdfUrl || uploads.previewUrl) && !checkoutUrl) {
-      // Cart failed entirely — try form POST with URLs
-    } else if ((uploads.specPdfUrl || uploads.previewUrl) && checkoutUrl) {
-      // Cart succeeded but without URLs — recreate with URLs attached
-      const retryUrl = await createShopifyCart(state, uploads.specPdfUrl, uploads.previewUrl);
-      if (retryUrl) finalCheckoutUrl = retryUrl;
+      const pdfBlob = await exportSpecSheet({
+        variant,
+        heroFrontView,
+        finish:            state.finish,
+        gemstoneLabel:     variant && productUsesGemstone(variant) && state.gemstone ? (getGemstone(state.gemstone)?.label ?? null) : null,
+        ringSize:          isRing ? (state.ringSize ?? null) : null,
+        engravingText:     engraving.text,
+        engravingOffsetX:  engraving.offsetX,
+        engravingOffsetY:  engraving.offsetY,
+        engravingFontSize: engraving.fontSize,
+        engravingRotation: engraving.rotation,
+        engravingSpacing:  engraving.lineSpacing,
+        engravingRightText:     isEarrings ? state.engravingRight.text        : undefined,
+        engravingRightOffsetX:  isEarrings ? state.engravingRight.offsetX     : undefined,
+        engravingRightOffsetY:  isEarrings ? state.engravingRight.offsetY     : undefined,
+        engravingRightFontSize: isEarrings ? state.engravingRight.fontSize    : undefined,
+        engravingRightRotation: isEarrings ? state.engravingRight.rotation    : undefined,
+        engravingRightSpacing:  isEarrings ? state.engravingRight.lineSpacing : undefined,
+        gemPosition:      !isEarrings ? state.gemPosition      : undefined,
+        gemPositionLeft:  isEarrings  ? state.gemPositionLeft  : undefined,
+        gemPositionRight: isEarrings  ? state.gemPositionRight : undefined,
+        renderViews,
+        bumpCanvas,
+        bumpCanvasRight,
+        canvasTarget: `${engTarget} (${w}×${h})`,
+        returnBlob: true,
+      });
+      if (pdfBlob instanceof Blob) {
+        const blob = await upload(`specs/spec-${Date.now()}.pdf`, pdfBlob, {
+          access: "public",
+          handleUploadUrl: "/api/upload-spec",
+          contentType: "application/pdf",
+        });
+        specPdfUrl = blob.url;
+      }
+    } catch (err) {
+      console.error("[buy] Spec upload failed — continuing to checkout:", err);
     }
 
-    if (finalCheckoutUrl && win) {
-      win.location.href = finalCheckoutUrl;
+    // Step 2: Create Shopify cart with spec PDF URL attached.
+    const checkoutUrl = await createShopifyCart(state, specPdfUrl);
+    if (checkoutUrl && win) {
+      win.location.href = checkoutUrl;
     } else {
-      const posted = addToCartFormPost(winName, state, uploads.specPdfUrl);
+      const posted = addToCartFormPost(winName, state, specPdfUrl);
       if (!posted && win) win.close();
     }
   }, [state, isEarrings, isRing, engravingTextures, earringLeftTextures, earringRightTextures]);

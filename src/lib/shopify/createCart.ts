@@ -129,7 +129,7 @@ export function addToCartFormPost(
  * Returns null if the product has no `shopifyVariantId`, env vars are missing,
  * or the API call fails — callers should fall back to the plain product page URL.
  */
-export async function createShopifyCart(state: CustomiserState, specPdfUrl?: string | null, previewUrl?: string | null): Promise<string | null> {
+export async function createShopifyCart(state: CustomiserState, specPdfUrl?: string | null): Promise<string | null> {
   if (!state.variant || !state.finish) return null;
 
   const product = PRODUCTS[state.variant];
@@ -163,9 +163,6 @@ export async function createShopifyCart(state: CustomiserState, specPdfUrl?: str
   const attributes    = buildLineItemAttributes(state);
   if (specPdfUrl) {
     attributes.push({ key: "_spec_pdf", value: specPdfUrl });
-  }
-  if (previewUrl) {
-    attributes.push({ key: "_design_preview", value: previewUrl });
   }
 
   const query = `

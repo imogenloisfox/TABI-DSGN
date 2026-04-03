@@ -108,6 +108,10 @@ function CaptureHelper({
 
     if (controls) controls.enabled = false;
 
+    // Set white background for JPEG captures (no transparency → would be black)
+    const savedBg = scene.background;
+    scene.background = new THREE.Color(0xffffff);
+
     // Match on-screen product scale: use the same orbit radius as the live preview
     // (ProductModel maps zoom ↔ scale from ORBIT_DISTANCE / DEFAULT_ORBIT_DISTANCE).
     const offset    = camera.position.clone().sub(savedTarget);
@@ -125,12 +129,15 @@ function CaptureHelper({
 
       await new Promise<void>((r) => setTimeout(r, 60));
       gl.render(scene, camera);
-      return gl.domElement.toDataURL("image/png");
+      return gl.domElement.toDataURL("image/jpeg", 0.85);
     }
 
     const front = await captureAt(0);
     const left  = await captureAt(-Math.PI / 2);
     const right = await captureAt( Math.PI / 2);
+
+    // Restore original background
+    scene.background = savedBg;
 
     camera.position.copy(savedPos);
     camera.lookAt(savedTarget);
@@ -163,6 +170,10 @@ function CaptureHelper({
 
     if (controls) controls.enabled = false;
 
+    // Set white background for JPEG captures
+    const savedBg = scene.background;
+    scene.background = new THREE.Color(0xffffff);
+
     const offset    = camera.position.clone().sub(savedTarget);
     const spherical = new THREE.Spherical().setFromVector3(offset);
     const { phi } = spherical;
@@ -182,7 +193,10 @@ function CaptureHelper({
 
     await new Promise<void>((resolve) => setTimeout(resolve, 80));
     gl.render(scene, camera);
-    const dataUrl = gl.domElement.toDataURL("image/png");
+    const dataUrl = gl.domElement.toDataURL("image/jpeg", 0.85);
+
+    // Restore original background
+    scene.background = savedBg;
 
     gl.setPixelRatio(prevDpr);
     gl.setSize(cw, ch, false);
