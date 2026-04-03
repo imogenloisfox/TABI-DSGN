@@ -8,6 +8,11 @@ const nextConfig: NextConfig = {
   // Enable gzip/brotli compression for all responses.
   compress: true,
 
+  // `VERCEL` is not available in the browser bundle; inline so FPS overlay can enable on deploys.
+  env: {
+    NEXT_PUBLIC_VERCEL_DEPLOY: process.env.VERCEL === "1" ? "1" : "0",
+  },
+
   async headers() {
     return [
       {

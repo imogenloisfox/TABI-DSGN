@@ -28,6 +28,7 @@ import {
   DevFpsPillOverlay,
   type DevFpsSample,
 } from "@/components/preview/DevFpsSessionChrome";
+import { showFpsOverlay } from "@/lib/showFpsOverlay";
 import PreviewOnlinePill from "@/components/preview/PreviewOnlinePill";
 import LobbyClickParticles from "./LobbyClickParticles";
 
@@ -471,7 +472,7 @@ export default function HomepageScene({
   exiting:            boolean;
   showcaseGemEpoch?:  number;
 }) {
-  const isDev = process.env.NODE_ENV === "development";
+  const fpsOn = showFpsOverlay();
   const lobbySurfaceRef = useRef<HTMLDivElement>(null);
 
   // Hide the entire scene until ExperienceReadyGate fires (2 rAFs after scene
@@ -512,14 +513,14 @@ export default function HomepageScene({
           <LobbyEntrance
             onPieceClick={onPieceClick}
             showcaseGemEpoch={showcaseGemEpoch}
-            devFpsSampleRef={isDev ? devSampleRef : undefined}
+            devFpsSampleRef={fpsOn ? devSampleRef : undefined}
             onSceneReady={() => setReady(true)}
             onLoaderPhaseChange={setLoaderPhase}
           />
         </Canvas>
         <div className="pointer-events-auto fixed bottom-4 right-4 z-[100] flex flex-row items-end gap-0">
           <PreviewOnlinePill />
-          {isDev ? <DevFpsPillOverlay metrics={devFpsMetrics} /> : null}
+          {fpsOn ? <DevFpsPillOverlay metrics={devFpsMetrics} /> : null}
         </div>
         <LobbyLoaderOverlay
           phase={loaderPhase}

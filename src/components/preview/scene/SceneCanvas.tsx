@@ -15,6 +15,7 @@ import {
   DevFpsMetricsCollector,
   type DevFpsSample,
 } from "@/components/preview/DevFpsSessionChrome";
+import { showFpsOverlay } from "@/lib/showFpsOverlay";
 import { CAMERA_CONFIG, ORBIT_CONSTRAINTS, DEFAULT_ORBIT_DISTANCE } from "./sceneConfig";
 import ProductModel, { type OrbitControlsHandle } from "./ProductModel";
 import StudioLighting from "./StudioLighting";
@@ -391,6 +392,7 @@ export default function SceneCanvas({
 }: SceneCanvasProps) {
   const orbitRef = useRef<OrbitControlsHandle>(null);
   const isDev    = process.env.NODE_ENV === "development";
+  const fpsOn    = showFpsOverlay();
   const isMobile = typeof window !== "undefined" && window.innerWidth < 768;
 
   return (
@@ -451,7 +453,7 @@ export default function SceneCanvas({
         {...ORBIT_CONSTRAINTS}
         enableZoom={!isMobile}
       />
-      {isDev && <DevFpsMetricsCollector onSampleRef={devFpsSampleRef} />}
+      {fpsOn && <DevFpsMetricsCollector onSampleRef={devFpsSampleRef} />}
       {isDev && <DevDiagnostics />}
     </Canvas>
     {/* Desktop only — bottom left, price + buy (viewport-fixed; sidebar is separate) */}

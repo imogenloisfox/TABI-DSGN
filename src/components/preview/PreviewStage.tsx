@@ -9,6 +9,7 @@ import {
   DevFpsPillOverlay,
   type DevFpsSample,
 } from "@/components/preview/DevFpsSessionChrome";
+import { showFpsOverlay } from "@/lib/showFpsOverlay";
 import PreviewMakingVideo from "@/components/preview/PreviewMakingVideo";
 import PreviewOnlinePill from "@/components/preview/PreviewOnlinePill";
 
@@ -54,7 +55,7 @@ export default function PreviewStage({
   previewLayoutEpoch = 0,
   onBuy,
 }: PreviewStageProps) {
-  const isDev = process.env.NODE_ENV === "development";
+  const fpsOn = showFpsOverlay();
   const [devFpsMetrics, setDevFpsMetrics] = useState<DevFpsSample>({
     fps:    0,
     msAvg:  0,
@@ -99,7 +100,7 @@ export default function PreviewStage({
         <PreviewMakingVideo variant={variant} />
         <div className="flex flex-row items-center gap-0">
           <PreviewOnlinePill />
-          {isDev ? <DevFpsPillOverlay metrics={devFpsMetrics} /> : null}
+          {fpsOn ? <DevFpsPillOverlay metrics={devFpsMetrics} /> : null}
         </div>
       </aside>
     </div>
