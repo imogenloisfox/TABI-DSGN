@@ -71,27 +71,101 @@ function buildLineItemAttributes(state: CustomiserState): Array<{ key: string; v
 }
 
 /**
+ * Form-POST fallback: submits directly to Shopify's /cart/add endpoint with
+ * all customisation as line item properties, targeting an already-open window.
+ * Does not require the Storefront API — works as long as the product is published.
+ * Returns true if the form was submitted successfully.
+ */
+export function addToCartFormPost(
+  windowName: string,
+  state: CustomiserState,
+  specPdfUrl?: string | null,
+): boolean {
+  if (!state.variant) return false;
+  const product   = PRODUCTS[state.variant];
+  const variantId = product.shopifyVariantId;
+  if (!variantId) return false;
+
+  // Derive store base from the product's storefront URL (e.g. https://tabidsgn.com)
+  const storeBase = product.storefrontProductUrl
+    ? new URL(product.storefrontProductUrl).origin
+    : process.env.NEXT_PUBLIC_SHOPIFY_STORE_URL;
+  if (!storeBase) return false;
+
+  const attrs = buildLineItemAttributes(state);
+  if (specPdfUrl) attrs.push({ key: "_spec_pdf", value: specPdfUrl });
+
+  const form = document.createElement("form");
+  form.method  = "POST";
+  form.action  = `${storeBase}/cart/add`;
+  form.target  = windowName;
+  form.style.display = "none";
+
+  const addInput = (name: string, value: string) => {
+    const el = document.createElement("input");
+    el.type  = "hidden";
+    el.name  = name;
+    el.value = value;
+    form.appendChild(el);
+  };
+
+  addInput("id",        variantId);
+  addInput("quantity",  "1");
+  addInput("return_to", "/checkout");
+  for (const { key, value } of attrs) {
+    addInput(`properties[${key}]`, value);
+  }
+
+  document.body.appendChild(form);
+  form.submit();
+  document.body.removeChild(form);
+  return true;
+}
+
+/**
  * Creates a Shopify cart via the Storefront API with all customisation details
  * attached as line item properties, then returns the checkout URL.
  *
  * Returns null if the product has no `shopifyVariantId`, env vars are missing,
  * or the API call fails — callers should fall back to the plain product page URL.
  */
-export async function createShopifyCart(state: CustomiserState, specPdfUrl?: string | null): Promise<string | null> {
+export async function createShopifyCart(state: CustomiserState, specPdfUrl?: string | null, previewUrl?: string | null): Promise<string | null> {
   if (!state.variant || !state.finish) return null;
 
   const product = PRODUCTS[state.variant];
-  const variantId = product.shopifyVariantId;
-  if (!variantId) return null;
-
   const storeUrl = process.env.NEXT_PUBLIC_SHOPIFY_STORE_URL;
   const token    = process.env.NEXT_PUBLIC_SHOPIFY_STOREFRONT_TOKEN;
   if (!storeUrl || !token) return null;
 
-  const merchandiseId = `gid://shopify/ProductVariant/${variantId}`;
+  // Resolve the real variant GID by product handle — guards against the stored
+  // shopifyVariantId being a product ID rather than a variant ID.
+  const handleQuery = `
+    query variantByHandle($handle: String!) {
+      product(handle: $handle) {
+        variants(first: 1) { edges { node { id } } }
+      }
+    }
+  `;
+  let merchandiseId: string | null = null;
+  try {
+    const hRes = await fetch(`${storeUrl}/api/${STOREFRONT_API_VERSION}/graphql.json`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", "X-Shopify-Storefront-Access-Token": token },
+      body: JSON.stringify({ query: handleQuery, variables: { handle: product.shopifyHandle } }),
+    });
+    const hData = (await hRes.json()) as { data?: { product?: { variants?: { edges?: Array<{ node?: { id?: string } }> } } } };
+    merchandiseId = hData?.data?.product?.variants?.edges?.[0]?.node?.id ?? null;
+    console.log("[createCart] resolved merchandiseId for", product.shopifyHandle, "→", merchandiseId);
+  } catch (err) {
+    console.error("[createCart] handle lookup failed:", err);
+  }
+  if (!merchandiseId) return null;
   const attributes    = buildLineItemAttributes(state);
   if (specPdfUrl) {
     attributes.push({ key: "_spec_pdf", value: specPdfUrl });
+  }
+  if (previewUrl) {
+    attributes.push({ key: "_design_preview", value: previewUrl });
   }
 
   const query = `
@@ -130,7 +204,7 @@ export async function createShopifyCart(state: CustomiserState, specPdfUrl?: str
 
     const userErrors = data?.data?.cartCreate?.userErrors;
     if (userErrors && userErrors.length > 0) {
-      console.error("[createCart] userErrors:", userErrors);
+      console.error("[createCart] userErrors:", JSON.stringify(userErrors, null, 2));
     }
 
     const checkoutUrl = data?.data?.cartCreate?.cart?.checkoutUrl ?? null;

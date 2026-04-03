@@ -3,11 +3,12 @@ import { NextResponse } from "next/server";
 
 /**
  * POST /api/upload-spec
- * Receives a PDF blob (multipart/form-data, field "file"), uploads it to
+ * Receives a file (multipart/form-data, field "file"), uploads it to
  * Vercel Blob with public access, and returns { url }.
  *
- * The URL is included as a _spec_pdf line item attribute in the Shopify order
- * so the jeweller can download the spec sheet directly from the admin order view.
+ * Supports both PDF spec sheets and PNG design preview images.
+ * The URL is included as a line item attribute in the Shopify order
+ * so the jeweller can access the spec sheet and design preview.
  *
  * Requires BLOB_READ_WRITE_TOKEN env var (Vercel dashboard → Storage → Blob).
  */
@@ -21,9 +22,14 @@ export async function POST(request: Request): Promise<NextResponse> {
     }
 
     const timestamp = Date.now();
-    const result = await put(`specs/spec-${timestamp}.pdf`, file, {
+    const isPdf = file.type === "application/pdf";
+    const path = isPdf
+      ? `specs/spec-${timestamp}.pdf`
+      : `previews/design-${timestamp}.png`;
+
+    const result = await put(path, file, {
       access: "public",
-      contentType: "application/pdf",
+      contentType: isPdf ? "application/pdf" : "image/png",
     });
 
     return NextResponse.json({ url: result.url });
