@@ -144,6 +144,12 @@ export default function App() {
   const leftGroupRef = useRef<HTMLDivElement>(null);
   const [leftChromeStackPx, setLeftChromeStackPx] = useState(LEFT_CHROME_PILL_ROW_PX);
 
+  // Remove the static HTML loader once React has mounted
+  useEffect(() => {
+    const loader = document.getElementById("initial-loader");
+    if (loader) loader.remove();
+  }, []);
+
   useLayoutEffect(() => {
     const el = leftGroupRef.current;
     if (!el) return;
@@ -314,6 +320,7 @@ export default function App() {
           exiting={transitioning}
           leftChromeStackPx={leftChromeStackPx}
           remixSignal={remixSignal}
+          onRemix={handleRemix}
           onRegisterActions={setCustomiserActions}
           onSavingChange={setIsSaving}
           onVariantChange={setLiveVariant}

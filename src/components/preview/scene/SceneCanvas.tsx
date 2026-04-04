@@ -322,7 +322,8 @@ function CameraController({
 function ConfigurableEnvironment() {
   const { gl, scene } = useThree();
 
-  const hdriPath             = "/hdri/studio_small_09_1k.hdr";
+  const isMobileHdri = typeof window !== "undefined" && window.innerWidth < 768;
+  const hdriPath     = isMobileHdri ? "/hdri/studio_small_09_512.hdr" : "/hdri/studio_small_09_1k.hdr";
   const exposure             = 1.4;
   const showBackground       = false;
   const backgroundBlurriness = 0.6;

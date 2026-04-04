@@ -99,8 +99,8 @@ export default function InfoColumns() {
           </p>
           <p className="mt-1 text-[10px] leading-[1.45] text-[#2a2c2d]">
             (b)&nbsp;
-            <a href="https://imogenfox.com" target="_blank" rel="noopener noreferrer" className="text-[#2a2c2d] underline underline-offset-[3px]">
-              imogenfox.com
+            <a href="https://www.instagram.com/iimofox/" target="_blank" rel="noopener noreferrer" className="text-[#2a2c2d] underline underline-offset-[3px]">
+              imogenfox.co.uk
             </a>
           </p>
         </div>

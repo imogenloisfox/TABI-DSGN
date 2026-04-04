@@ -107,9 +107,7 @@ export function createStoneMaterial(config: StoneMaterialConfig): THREE.MeshPhys
     clearcoat: 0,
     clearcoatRoughness: 0,
     reflectivity: 1.0,
-    // DoubleSide retained for gemstone geometry — transmissive materials
-    // require back-face rendering for correct refraction through the stone.
-    side: THREE.DoubleSide,
+    side: THREE.FrontSide,
     transparent: true,
   });
 }

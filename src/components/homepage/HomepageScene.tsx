@@ -30,7 +30,6 @@ import {
 } from "@/components/preview/DevFpsSessionChrome";
 import { showFpsOverlay } from "@/lib/showFpsOverlay";
 import PreviewOnlinePill from "@/components/preview/PreviewOnlinePill";
-import LobbyClickParticles from "./LobbyClickParticles";
 
 // ─── MOBILE HOMEPAGE TUNING — edit these values to adjust the scene ─────────
 export const MOBILE_SCENE_CONFIG = {
@@ -85,7 +84,10 @@ function FixedEnvironment() {
     // Use module-level singleton cache — reuses the texture already loaded by
     // the customiser scene (same HDRI path), skipping a redundant network fetch
     // and PMREMGenerator pass.
-    getEnvTexture(gl, "/hdri/studio_small_09_1k.hdr").then((envTex) => {
+    const hdriPath = typeof window !== "undefined" && window.innerWidth < 768
+      ? "/hdri/studio_small_09_512.hdr"
+      : "/hdri/studio_small_09_1k.hdr";
+    getEnvTexture(gl, hdriPath).then((envTex) => {
       scene.environment = envTex;
       scene.environmentRotation.set(2.45, 0, 0);
     });
@@ -122,7 +124,7 @@ function SeparationSystem({
       states[i].offsetZ *= 0.96;
     }
 
-    for (let iter = 0; iter < 5; iter++) {
+    for (let iter = 0; iter < 2; iter++) {
       for (let i = 0; i < n; i++) {
         for (let j = i + 1; j < n; j++) {
           const ri = Math.max(states[i].colliderX, states[i].colliderY);
@@ -403,16 +405,34 @@ function LobbyLoaderOverlay({
   const fading = phase === "fade";
   return (
     <div
-      className="absolute inset-0 z-10 pointer-events-none"
+      className="absolute inset-0 z-10 pointer-events-none flex items-center justify-center"
       style={{
-        background: "#e9e9e9",
+        background: "#ffffff",
         opacity: fading ? 0 : 1,
         transition: `opacity ${LOBBY_LOADER_FADE_MS}ms cubic-bezier(0.76, 0, 0.24, 1)`,
       }}
       onTransitionEnd={(e) => {
         if (e.propertyName === "opacity" && fading) onFadeComplete();
       }}
-    />
+    >
+      <span
+        className="text-[14px] font-medium lowercase"
+        style={{
+          fontFamily: '"ABC Diatype", ui-sans-serif, system-ui, sans-serif',
+          color: "#2a2c2d",
+          letterSpacing: "-0.3px",
+          animation: "loaderPulse 1.8s ease-in-out infinite",
+        }}
+      >
+        tabi dsgn
+      </span>
+      <style>{`
+        @keyframes loaderPulse {
+          0%, 100% { transform: scale(1); opacity: 0.85; }
+          50% { transform: scale(1.12); opacity: 1; }
+        }
+      `}</style>
+    </div>
   );
 }
 
@@ -526,7 +546,6 @@ export default function HomepageScene({
           phase={loaderPhase}
           onFadeComplete={() => setLoaderPhase("off")}
         />
-        <LobbyClickParticles surfaceRef={lobbySurfaceRef} active={!exiting} />
       </div>
     </div>
   );

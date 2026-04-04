@@ -80,24 +80,24 @@ export default function SiteHeader({
           info
         </VanishButton>
 
-        {showRemixButton && onRemix ? (
-          <VanishButton
-            onClick={onRemix}
-            className={`flex ${CHROME_TOP_PILL_BASE} relative z-10 w-[80px] shrink-0 justify-center overflow-visible normal-case lowercase !bg-[#b1b1b1] text-[#2a2c2d] mobile-btn-hover mobile-btn-hover-b1 ${HEADER_CHROME_HOVER_INVERT}`}
-            style={{ ...CHROME_HEADER_FONT, boxShadow: "none" }}
-          >
-            remix
-          </VanishButton>
-        ) : null}
-
         {onSave ? (
           <VanishButton
             onClick={onSave}
             disabled={isSaving}
-            className={`flex md:hidden ${CHROME_TOP_PILL_BASE} relative z-10 w-[80px] shrink-0 justify-center overflow-visible normal-case lowercase !bg-[#8D8D8D] !text-[#2a2c2d] disabled:cursor-wait disabled:opacity-50 mobile-btn-hover ${HEADER_CHROME_HOVER_INVERT}`}
+            className={`flex ${CHROME_TOP_PILL_BASE} relative z-10 w-[80px] shrink-0 justify-center overflow-visible normal-case lowercase !bg-[#b1b1b1] !text-[#2a2c2d] disabled:cursor-wait disabled:opacity-50 mobile-btn-hover mobile-btn-hover-b1 ${HEADER_CHROME_HOVER_INVERT}`}
             style={{ ...CHROME_HEADER_FONT, boxShadow: "none" }}
           >
             {isSaving ? "saving…" : "save"}
+          </VanishButton>
+        ) : null}
+
+        {showRemixButton && onRemix ? (
+          <VanishButton
+            onClick={onRemix}
+            className={`flex md:hidden ${CHROME_TOP_PILL_BASE} relative z-10 w-[80px] shrink-0 justify-center overflow-visible normal-case lowercase !bg-[#8D8D8D] text-[#2a2c2d] mobile-btn-hover ${HEADER_CHROME_HOVER_INVERT}`}
+            style={{ ...CHROME_HEADER_FONT, boxShadow: "none" }}
+          >
+            remix
           </VanishButton>
         ) : null}
 
@@ -141,8 +141,8 @@ export function ProductStrip() {
         <LoopParticleText
           words={["engraving", "customising", "designing", "personalising", "building"]}
           wrapperClassName="flex h-[30px] items-center bg-[#777777] px-3"
-          className="text-[14px] font-bold leading-none lowercase tracking-normal"
-          style={{ ...CHROME_HEADER_FONT, color: "#e9e9e9" }}
+          className="text-[14px] font-bold leading-none lowercase tracking-normal text-[#e9e9e9]"
+          style={{ ...CHROME_HEADER_FONT }}
         />
       </div>
     </div>

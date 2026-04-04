@@ -159,6 +159,7 @@ function FloatingPiece({
 
   // ── Opacity fade-in — start invisible, fade to 1 over 0.4s ─────────────
   const fadeProgress = useRef(0);             // 0 → 1 over FADE_DURATION_S
+  const fadeMatsRef  = useRef<THREE.MeshStandardMaterial[] | null>(null);
   const FADE_DURATION_S = 0.4;
 
   // ── Hover state — drives scale and speed, updated via pointer events ──────
@@ -192,16 +193,22 @@ function FloatingPiece({
     if (fadeProgress.current < 1) {
       fadeProgress.current = Math.min(1, fadeProgress.current + delta / FADE_DURATION_S);
       const opacity = fadeProgress.current;
-      g.traverse((child) => {
-        if ((child as THREE.Mesh).isMesh) {
-          const mat = (child as THREE.Mesh).material as THREE.MeshStandardMaterial;
-          if (mat) {
-            mat.transparent = opacity < 1;
-            mat.opacity = opacity;
-            mat.needsUpdate = true;
+      const done = opacity >= 1;
+      if (!fadeMatsRef.current) {
+        const mats: THREE.MeshStandardMaterial[] = [];
+        g.traverse((child) => {
+          if ((child as THREE.Mesh).isMesh) {
+            const mat = (child as THREE.Mesh).material as THREE.MeshStandardMaterial;
+            if (mat) mats.push(mat);
           }
-        }
-      });
+        });
+        fadeMatsRef.current = mats;
+      }
+      for (const mat of fadeMatsRef.current) {
+        mat.transparent = !done;
+        mat.opacity = opacity;
+      }
+      if (done) fadeMatsRef.current = null;
     }
 
     // ── Detect click → seed new random targets ──────────────────────────────

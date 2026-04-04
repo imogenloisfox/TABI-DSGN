@@ -153,7 +153,7 @@ function EngravingSection({
           // Block Enter key entirely for earrings
           if (isEarring && e.key === "Enter") e.preventDefault();
         }}
-        className={`w-full max-w-[240px] resize-none border-0 text-[14px] leading-[1.2] focus:outline-none min-h-0 ${
+        className={`w-full max-w-[240px] resize-none border-0 text-[16px] leading-[1.2] focus:outline-none min-h-0 ${
           isEarring
             ? "h-full px-2 whitespace-nowrap overflow-x-auto overflow-y-hidden pt-1.5 pb-1.5"
             : "h-full px-2 pt-1.5 pb-1.5"
@@ -165,7 +165,7 @@ function EngravingSection({
       {!isFocused && (
         <span
           aria-hidden
-          className={`engraving-cursor-blink pointer-events-none absolute left-2 select-none text-[14px] leading-[1.2] top-1.5`}
+          className={`engraving-cursor-blink pointer-events-none absolute left-2 select-none text-[16px] leading-[1.2] top-1.5`}
           style={{ color: cursorColor, fontFamily: UI_FONT_FAMILY }}
         >
           |

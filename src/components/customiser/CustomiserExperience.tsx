@@ -84,6 +84,8 @@ interface CustomiserExperienceProps {
   leftChromeStackPx?: number;
   /** Set by App when the user clicks “remix” — epoch change triggers a full state swap. */
   remixSignal?:     { preset: RemixPreset; epoch: number } | null;
+  /** Fires when the user clicks remix in the sidebar. */
+  onRemix?:         () => void;
   /** Called once on mount with stable save/reset wrappers; called with null on unmount. */
   onRegisterActions?: (actions: CustomiserActions | null) => void;
   /** Fires when the save/export async operation starts (true) and finishes (false). */
@@ -99,6 +101,7 @@ export default function CustomiserExperience({
   exiting = false,
   leftChromeStackPx = 30,
   remixSignal = null,
+  onRemix,
   onRegisterActions,
   onSavingChange,
   onVariantChange,
@@ -584,21 +587,18 @@ export default function CustomiserExperience({
                     />
                     <div className={`${SIDEBAR_BUTTON_ROW_2} py-0`}>
                       <VanishButton
-                        onClick={resetAll}
+                        onClick={onRemix}
                         className={`${customiserToolbarActionPillClass(toolbarCategory, "reset")} min-w-0`}
                         style={{ ...CHROME_HEADER_FONT, boxShadow: "none" }}
                       >
-                        reset
+                        remix
                       </VanishButton>
                       <VanishButton
-                        onClick={handleExportSpec}
-                        disabled={isGenerating}
-                        className={`${customiserToolbarActionPillClass(toolbarCategory, "save")} min-w-0 ${
-                          isGenerating ? "truncate" : ""
-                        } disabled:cursor-wait disabled:opacity-50`}
+                        onClick={resetAll}
+                        className={`${customiserToolbarActionPillClass(toolbarCategory, "save")} min-w-0`}
                         style={{ ...CHROME_HEADER_FONT, boxShadow: "none" }}
                       >
-                        {isGenerating ? "saving…" : "save"}
+                        reset
                       </VanishButton>
                     </div>
                     </>
@@ -607,13 +607,8 @@ export default function CustomiserExperience({
               </div>
             </aside>
 
-            {/* ── Mobile backdrop — tapping outside panel closes it ── */}
-            {renderedTab && (
-              <div
-                className="fixed inset-0 z-20 md:hidden"
-                onClick={() => setActiveTab(null)}
-              />
-            )}
+            {/* ── Mobile backdrop — removed so touch passes through for 3D rotation.
+                 Panel closes when user taps the active toolbar button again. ── */}
 
             {/* ── Mobile floating panel — slides up on open, down on close ── */}
             {renderedTab && (
@@ -777,7 +772,7 @@ export default function CustomiserExperience({
 
               {/* Out-of-bounds advisory — bottom centre; tap to dismiss until text or variant changes */}
               {anyOutOfBounds && !isGenerating && !oobBannerDismissed && (
-                <div className="pointer-events-none absolute inset-x-0 bottom-8 z-20 flex justify-center px-4">
+                <div className="pointer-events-none absolute inset-x-0 bottom-24 md:bottom-8 md:right-[220px] z-20 flex justify-center px-4">
                   <button
                     type="button"
                     aria-label="Dismiss safe zone warning"
