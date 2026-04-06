@@ -216,6 +216,11 @@ body {
 }
 
 
+/* Mobile tab bar — hide scrollbar while keeping scroll functionality */
+.mobile-ui-footer::-webkit-scrollbar {
+  display: none;
+}
+
 /* Mobile customiser tab panel — opacity fade in */
 @keyframes mobileTabFadeIn {
   from { opacity: 0; transform: translateY(12px); }

@@ -542,22 +542,6 @@ export default function CustomiserExperience({
     isRing, // size
   ].filter(Boolean).length;
 
-  // Mobile tab width — computed so all visible tabs fit within the viewport.
-  // Uses Math.floor((viewportWidth - leftPad) / tabCount), min 55px.
-  // If even 55px tabs don't fit, the container falls back to overflow-x-auto.
-  const [tabWidthPx, setTabWidthPx] = useState(80);
-  useEffect(() => {
-    const update = () => {
-      if (window.innerWidth >= 768) return;
-      const usable = window.innerWidth - 16; // 16px left padding
-      setTabWidthPx(Math.max(55, Math.floor(usable / visibleTabCount)));
-    };
-    update();
-    window.addEventListener("resize", update);
-    return () => window.removeEventListener("resize", update);
-  }, [visibleTabCount]);
-  const mobileTabsNeedScroll = tabWidthPx === 55 && 55 * visibleTabCount > window.innerWidth - 16;
-
   /** Bumps after chrome height settles (debounced — avoids spamming resync while padding tracks each frame). */
   const [previewLayoutEpoch, setPreviewLayoutEpoch] = useState(0);
   const layoutEpochSkipMountRef = useRef(false);
@@ -777,15 +761,17 @@ export default function CustomiserExperience({
               </div>
             )}
 
-            {/* ── Mobile tab bar — fixed bottom, left-aligned pill tabs ── */}
+            {/* ── Mobile tab bar — fixed bottom, scrollable pill row ── */}
             <div
-              className="mobile-ui-footer fixed inset-x-0 bottom-0 z-40 flex items-end gap-0 bg-transparent pl-4 md:hidden"
+              className="mobile-ui-footer fixed inset-x-0 bottom-0 z-40 flex items-end gap-0 bg-transparent md:hidden"
               style={{
                 paddingBottom: "calc(16px + env(safe-area-inset-bottom))",
-                overflowX: mobileTabsNeedScroll ? "auto" : undefined,
-                WebkitOverflowScrolling: mobileTabsNeedScroll ? "touch" : undefined,
-                scrollbarWidth: mobileTabsNeedScroll ? "none" : undefined,
-                msOverflowStyle: mobileTabsNeedScroll ? "none" : undefined,
+                paddingLeft: 16,
+                paddingRight: 16,
+                overflowX: "auto",
+                WebkitOverflowScrolling: "touch",
+                scrollbarWidth: "none",
+                msOverflowStyle: "none",
               } as React.CSSProperties}
             >
               {(
@@ -803,8 +789,8 @@ export default function CustomiserExperience({
                   <VanishButton
                     key={t.id}
                     onClick={() => toggleTab(t.id)}
-                    className={`inline-flex h-[30px] shrink-0 items-center justify-center border-0 text-[14px] font-bold lowercase shadow-none outline-none text-[#2a2c2d] mobile-btn-hover${/^#d9d9d9$/i.test(t.bg) ? " mobile-btn-hover-d9" : /^#ffffff$/i.test(t.bg) ? " mobile-btn-hover-f" : /^#b1b1b1$/i.test(t.bg) ? " mobile-btn-hover-b1" : ""}`}
-                    style={{ ...CHROME_HEADER_FONT, width: tabWidthPx, backgroundColor: t.bg, color: activeTab === t.id ? "#e9e9e9" : "#2a2c2d", ["--btn-bg" as string]: t.bg, ["--btn-color" as string]: "#2a2c2d" }}
+                    className={`inline-flex h-[30px] w-[80px] shrink-0 items-center justify-center border-0 text-[14px] font-bold lowercase shadow-none outline-none text-[#2a2c2d] mobile-btn-hover${/^#d9d9d9$/i.test(t.bg) ? " mobile-btn-hover-d9" : /^#ffffff$/i.test(t.bg) ? " mobile-btn-hover-f" : /^#b1b1b1$/i.test(t.bg) ? " mobile-btn-hover-b1" : ""}`}
+                    style={{ ...CHROME_HEADER_FONT, backgroundColor: t.bg, color: activeTab === t.id ? "#e9e9e9" : "#2a2c2d", ["--btn-bg" as string]: t.bg, ["--btn-color" as string]: "#2a2c2d" }}
                     data-active={activeTab === t.id ? "true" : undefined}
                   >
                     {t.label}
