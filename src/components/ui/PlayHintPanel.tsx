@@ -17,9 +17,7 @@ export default function PlayHintPanel() {
           Playtime
         </p>
         <p className="text-[10px] leading-[1.45] text-[#000000]">
-          Spend time in the lobby of your TABI DSGN customisation experience. Hover over an object to
-          bring it into focus. Click anywhere to scatter the jewellery. When you’re ready, select
-          your chosen piece to begin customising.
+          Spend time in the lobby of your TABI DSGN customisation experience. Hover over an object to bring it into focus. Drag to rotate the experience. Click anywhere to scatter the jewellery. When you’re ready, select your chosen piece to begin customising.
         </p>
       </div>
     </div>
