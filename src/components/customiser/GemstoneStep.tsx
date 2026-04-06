@@ -118,7 +118,7 @@ export default function GemstoneStep({
       {/* Mobile gem name label — shows above swatch row */}
       {singleRow && mobile && showColours && (
         <div
-          className="flex h-[30px] w-[80px] shrink-0 items-center justify-center"
+          className="flex h-[30px] w-[120px] shrink-0 items-center justify-center"
           style={{ ...CHROME_HEADER_FONT, backgroundColor: "#ffffff", color: "#2a2c2d" }}
         >
           <span className="truncate text-[14px] lowercase">
