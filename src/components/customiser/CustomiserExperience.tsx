@@ -118,12 +118,9 @@ export default function CustomiserExperience({
 
   const [cameraResetSignal, setCameraResetSignal] = useState(0);
 
-  // Reset rotation to default when variant changes — mobile only
+  // Reset rotation to default when variant changes — all devices
   useEffect(() => {
-    if (typeof window === "undefined") return;
-    if (window.innerWidth < 768) {
-      setCameraResetSignal((n) => n + 1);
-    }
+    setCameraResetSignal((n) => n + 1);
   }, [state.variant]);
 
   // 5ms pulse — noticeable but subtle on supported devices; silently no-ops elsewhere.
