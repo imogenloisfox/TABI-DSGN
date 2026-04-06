@@ -109,6 +109,62 @@ function EngravingSection({
   const [isFocused, setIsFocused] = useState(false);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
+  // Typewriter placeholder — types out then deletes "type here..." character by character
+  const PLACEHOLDER_TEXT = "type here...";
+  const [placeholderDisplayed, setPlaceholderDisplayed] = useState("");
+  const placeholderTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const placeholderPhaseRef = useRef<"typing" | "deleting" | "pause">("typing");
+
+  useEffect(() => {
+    // Only animate when field is empty and unfocused
+    const shouldRun = !isFocused && !value.text;
+
+    const clear = () => {
+      if (placeholderTimerRef.current) clearTimeout(placeholderTimerRef.current);
+    };
+
+    if (!shouldRun) {
+      clear();
+      setPlaceholderDisplayed("");
+      placeholderPhaseRef.current = "typing";
+      return;
+    }
+
+    const step = () => {
+      setPlaceholderDisplayed((prev) => {
+        const phase = placeholderPhaseRef.current;
+        if (phase === "typing") {
+          const next = PLACEHOLDER_TEXT.slice(0, prev.length + 1);
+          if (next.length === PLACEHOLDER_TEXT.length) {
+            placeholderPhaseRef.current = "pause";
+            placeholderTimerRef.current = setTimeout(step, 900);
+          } else {
+            placeholderTimerRef.current = setTimeout(step, 80);
+          }
+          return next;
+        } else if (phase === "pause") {
+          placeholderPhaseRef.current = "deleting";
+          placeholderTimerRef.current = setTimeout(step, 60);
+          return prev;
+        } else {
+          // deleting
+          const next = prev.slice(0, -1);
+          if (next.length === 0) {
+            placeholderPhaseRef.current = "typing";
+            placeholderTimerRef.current = setTimeout(step, 400);
+          } else {
+            placeholderTimerRef.current = setTimeout(step, 45);
+          }
+          return next;
+        }
+      });
+    };
+
+    placeholderTimerRef.current = setTimeout(step, 300);
+    return clear;
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isFocused, value.text]);
+
   useEffect(() => {
     if (!requestInitialFocus) return;
     let cancelled = false;
@@ -148,7 +204,6 @@ function EngravingSection({
         ref={textareaRef}
         rows={isEarring ? 1 : compact ? 2 : 5}
         value={value.text}
-        placeholder="Type here..."
         onChange={(e) => handleTextChange(e.target.value)}
         onFocus={() => setIsFocused(true)}
         onBlur={() => setIsFocused(false)}
@@ -160,16 +215,25 @@ function EngravingSection({
           isEarring
             ? "h-full px-2 whitespace-nowrap overflow-x-auto overflow-y-hidden pt-1.5 pb-1.5"
             : "h-full px-2 pt-1.5 pb-1.5"
-        } bg-[#ffffff] text-[#2a2c2d] placeholder:text-[#b1b1b1] placeholder:font-normal`}
-        style={{
-          fontFamily: UI_FONT_FAMILY,
-        }}
+        } bg-[#ffffff] text-[#2a2c2d]`}
+        style={{ fontFamily: UI_FONT_FAMILY }}
       />
-      {/* Blinking cursor only when there's text and the field is unfocused */}
+      {/* Typewriter placeholder — shown when empty and unfocused */}
+      {!isFocused && !hasText && (
+        <span
+          aria-hidden
+          className="pointer-events-none absolute left-2 top-1.5 select-none"
+          style={{ color: "#b1b1b1", fontSize: 10, fontFamily: UI_FONT_FAMILY, lineHeight: "1.2" }}
+        >
+          {placeholderDisplayed}
+          <span className="engraving-cursor-blink" style={{ opacity: 0.6 }}>|</span>
+        </span>
+      )}
+      {/* Blinking cursor when there's text and the field is unfocused */}
       {!isFocused && hasText && (
         <span
           aria-hidden
-          className={`engraving-cursor-blink pointer-events-none absolute left-2 select-none text-[16px] leading-[1.2] top-1.5`}
+          className="engraving-cursor-blink pointer-events-none absolute left-2 select-none text-[16px] leading-[1.2] top-1.5"
           style={{ color: cursorColor, fontFamily: UI_FONT_FAMILY }}
         >
           |
