@@ -722,7 +722,7 @@ export default function CustomiserExperience({
                   />
                 )}
                 {renderedTab === "gemstone" && state.variant && !isEarrings && productUsesGemstone(state.variant) && (
-                  <div style={{ backgroundColor: "#b1b1b1" }}>
+                  <div>
                     <GemstoneStep
                       category={state.category}
                       variant={state.variant}
