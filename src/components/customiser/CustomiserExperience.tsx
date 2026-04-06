@@ -25,7 +25,7 @@ import {
 import { createShopifyCart, addToCartFormPost } from "@/lib/shopify/createCart";
 import { upload } from "@vercel/blob/client";
 import { getShopifyProductUrl } from "@/lib/shopifyProductUrl";
-import { buildStateFromPreset, captureCurrentAsPreset, ENGRAVING_REMIX_PRESETS } from "@/lib/remixPresets";
+import { buildStateFromPreset, captureCurrentAsPreset, REMIX_PRESETS } from "@/lib/remixPresets";
 import type { RemixPreset } from "@/lib/remixPresets";
 import { useEngravingTexture, CANVAS_SIZE } from "@/hooks/useEngravingTexture";
 import { getGemstone, pickRandomGemstoneId } from "@/data/gemstones";
@@ -244,31 +244,30 @@ export default function CustomiserExperience({
   const handleEngravingRemix = useCallback(() => {
     const variant = state.variant;
     if (!variant) return;
-    const presets = ENGRAVING_REMIX_PRESETS[variant];
-    if (!presets || presets.length === 0) return;
+    const matching = REMIX_PRESETS.filter((p) => p.variant === variant);
+    if (matching.length === 0) return;
 
     const lastIdx = lastEngravingIdxRef.current[variant] ?? -1;
     let idx: number;
-    if (presets.length === 1) {
+    if (matching.length === 1) {
       idx = 0;
     } else {
-      do { idx = Math.floor(Math.random() * presets.length); }
+      do { idx = Math.floor(Math.random() * matching.length); }
       while (idx === lastIdx);
     }
     lastEngravingIdxRef.current[variant] = idx;
-    const p = presets[idx];
+    const p = matching[idx];
 
     if (variant === "earrings") {
       setState((prev) => ({
         ...prev,
-        engravingLeft:  { ...prev.engravingLeft,  text: p.leftText  ?? prev.engravingLeft.text,  offsetX: p.offsetX, offsetY: p.offsetY, fontSize: p.fontSize, lineSpacing: p.lineSpacing },
-        engravingRight: { ...prev.engravingRight, text: p.rightText ?? prev.engravingRight.text, offsetX: p.offsetX, offsetY: p.offsetY, fontSize: p.fontSize, lineSpacing: p.lineSpacing },
+        engravingLeft:    p.engravingLeft    ? { ...prev.engravingLeft,  ...p.engravingLeft  } : prev.engravingLeft,
+        engravingRight:   p.engravingRight   ? { ...prev.engravingRight, ...p.engravingRight } : prev.engravingRight,
+        gemPositionLeft:  p.gemPositionLeft  ?? prev.gemPositionLeft,
+        gemPositionRight: p.gemPositionRight ?? prev.gemPositionRight,
       }));
-    } else {
-      setState((prev) => ({
-        ...prev,
-        engraving: { ...prev.engraving, text: p.text, offsetX: p.offsetX, offsetY: p.offsetY, fontSize: p.fontSize, lineSpacing: p.lineSpacing },
-      }));
+    } else if (p.engraving) {
+      setState((prev) => ({ ...prev, engraving: { ...prev.engraving, ...p.engraving } }));
     }
     haptic();
   }, [state.variant, haptic]);
@@ -409,9 +408,11 @@ export default function CustomiserExperience({
 
     // Write a branded loading page so the customer sees "tabi dsgn" pulsing, not a blank page.
     if (win) {
+      const origin = window.location.origin;
       win.document.write(`<!DOCTYPE html><html><head><title>tabi dsgn</title>
         <style>
-          @font-face{font-family:"ABC Diatype";src:local("ABC Diatype");font-weight:700}
+          @font-face{font-family:"ABC Diatype";src:url("${origin}/fonts/ABCDiatype-Bold.otf") format("opentype");font-weight:500;font-style:normal;font-display:swap}
+          @font-face{font-family:"ABC Diatype";src:url("${origin}/fonts/ABCDiatype-Bold.otf") format("opentype");font-weight:700;font-style:normal;font-display:swap}
           body{margin:0;display:flex;align-items:center;justify-content:center;height:100vh;
           background:#ffffff;font-family:"ABC Diatype",ui-sans-serif,system-ui,sans-serif}
           .brand{font-size:14px;font-weight:500;color:#2a2c2d;letter-spacing:-0.3px;
@@ -628,7 +629,7 @@ export default function CustomiserExperience({
                       <button
                         onClick={handleEngravingRemix}
                         className="inline-flex h-[30px] min-w-0 w-full cursor-pointer items-center justify-center border-0 px-3 text-[14px] font-bold shadow-none outline-none lowercase remix-btn"
-                        style={{ ...CHROME_HEADER_FONT, boxShadow: "none" }}
+                        style={{ ...CHROME_HEADER_FONT }}
                       >
                         <span className="remix-label">remix</span>
                       </button>
@@ -790,7 +791,7 @@ export default function CustomiserExperience({
                     key={t.id}
                     onClick={() => toggleTab(t.id)}
                     className={`inline-flex h-[30px] w-[80px] shrink-0 items-center justify-center border-0 text-[14px] font-bold lowercase shadow-none outline-none text-[#2a2c2d] mobile-btn-hover${/^#d9d9d9$/i.test(t.bg) ? " mobile-btn-hover-d9" : /^#ffffff$/i.test(t.bg) ? " mobile-btn-hover-f" : /^#b1b1b1$/i.test(t.bg) ? " mobile-btn-hover-b1" : ""}`}
-                    style={{ ...CHROME_HEADER_FONT, backgroundColor: t.bg, color: activeTab === t.id ? "#e9e9e9" : "#2a2c2d", ["--btn-bg" as string]: t.bg, ["--btn-color" as string]: "#2a2c2d" }}
+                    style={{ ...CHROME_HEADER_FONT, backgroundColor: t.bg, color: "#2a2c2d", ["--btn-bg" as string]: t.bg, ["--btn-color" as string]: "#2a2c2d" }}
                     data-active={activeTab === t.id ? "true" : undefined}
                   >
                     {t.label}

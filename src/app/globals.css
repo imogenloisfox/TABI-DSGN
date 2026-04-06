@@ -1,9 +1,30 @@
 @import "tailwindcss";
 
-/* Homepage / UI — ABC Diatype Bold (trial, single supplied weight) */
+/* Homepage / UI — ABC Diatype Bold */
 @font-face {
   font-family: "ABC Diatype";
-  src: url("/fonts/ABCDiatype-Bold-Trial.woff") format("woff");
+  src: url("/fonts/ABCDiatype-Bold.otf") format("opentype");
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+@font-face {
+  font-family: "ABC Diatype";
+  src: url("/fonts/ABCDiatype-Bold.otf") format("opentype");
+  font-weight: 500;
+  font-style: normal;
+  font-display: swap;
+}
+@font-face {
+  font-family: "ABC Diatype";
+  src: url("/fonts/ABCDiatype-Bold.otf") format("opentype");
+  font-weight: 600;
+  font-style: normal;
+  font-display: swap;
+}
+@font-face {
+  font-family: "ABC Diatype";
+  src: url("/fonts/ABCDiatype-Bold.otf") format("opentype");
   font-weight: 700;
   font-style: normal;
   font-display: swap;
@@ -127,92 +148,43 @@ body {
   }
 }
 
-/* Chip hover + active (ring size + gemstone) — bg to #d9d9d9, text always #2a2c2d */
-.chip-hover:hover,
-.chip-hover[data-active="true"],
-.chip-hover:hover.chip-hover,
-.chip-hover[data-active="true"].chip-hover {
+/* Chip hover (ring size + gemstone) — bg to #d9d9d9 on hover, desktop only, not while pressing */
+@media (hover: hover) {
+  .chip-hover:hover:not(:active) {
+    background-color: #d9d9d9 !important;
+  }
+}
+/* Selected state — bg only, text stays #2a2c2d always */
+.chip-hover[data-active="true"] {
   background-color: #d9d9d9 !important;
-  color: #2a2c2d !important;
 }
 
-/* Button hover — text fades to #e9e9e9 */
-.mobile-btn-hover:hover > *,
-.mobile-btn-hover:hover span {
-  color: #e9e9e9 !important;
-  transition: color 150ms ease;
-}
-
-/* Button active/selected — text stays #e9e9e9 on both mobile and desktop */
-.mobile-btn-hover[data-active="true"] > *,
-.mobile-btn-hover[data-active="true"] span {
-  color: #e9e9e9 !important;
-}
-
-/* #d9d9d9 pills (info, mobile gemstone tab) — hover / press / selected label #ffffff */
-.mobile-btn-hover.mobile-btn-hover-d9:hover > *,
-.mobile-btn-hover.mobile-btn-hover-d9:hover span {
-  color: #ffffff !important;
-  transition: color 150ms ease;
-}
-
-.mobile-btn-hover.mobile-btn-hover-d9:active > *,
-.mobile-btn-hover.mobile-btn-hover-d9:active span {
-  color: #ffffff !important;
-}
-
-.mobile-btn-hover.mobile-btn-hover-d9:focus-visible > *,
-.mobile-btn-hover.mobile-btn-hover-d9:focus-visible span {
-  color: #ffffff !important;
-}
-
-.mobile-btn-hover.mobile-btn-hover-d9[data-active="true"] > *,
-.mobile-btn-hover.mobile-btn-hover-d9[data-active="true"] span {
-  color: #ffffff !important;
-}
-
-/* #ffffff pills (tabi back, mobile jewellery / variant tabs) — hover / press / selected label #d9d9d9 */
-.mobile-btn-hover.mobile-btn-hover-f:hover > *,
-.mobile-btn-hover.mobile-btn-hover-f:hover span {
-  color: #d9d9d9 !important;
-  transition: color 150ms ease;
-}
-
-.mobile-btn-hover.mobile-btn-hover-f:active > *,
-.mobile-btn-hover.mobile-btn-hover-f:active span {
-  color: #d9d9d9 !important;
-}
-
-.mobile-btn-hover.mobile-btn-hover-f:focus-visible > *,
-.mobile-btn-hover.mobile-btn-hover-f:focus-visible span {
-  color: #d9d9d9 !important;
-}
-
-.mobile-btn-hover.mobile-btn-hover-f[data-active="true"] > *,
-.mobile-btn-hover.mobile-btn-hover-f[data-active="true"] span {
-  color: #d9d9d9 !important;
-}
-
-/* #b1b1b1 pills — hover / press / selected label #f1f1f1 */
-.mobile-btn-hover.mobile-btn-hover-b1:hover > *,
-.mobile-btn-hover.mobile-btn-hover-b1:hover span {
-  color: #f1f1f1 !important;
-  transition: color 150ms ease;
-}
-
-.mobile-btn-hover.mobile-btn-hover-b1:active > *,
-.mobile-btn-hover.mobile-btn-hover-b1:active span {
-  color: #f1f1f1 !important;
-}
-
-.mobile-btn-hover.mobile-btn-hover-b1:focus-visible > *,
-.mobile-btn-hover.mobile-btn-hover-b1:focus-visible span {
-  color: #f1f1f1 !important;
-}
-
-.mobile-btn-hover.mobile-btn-hover-b1[data-active="true"] > *,
-.mobile-btn-hover.mobile-btn-hover-b1[data-active="true"] span {
-  color: #f1f1f1 !important;
+/* ── Desktop hover text colour — pointer devices only, not while pressing ─────── */
+@media (hover: hover) {
+  /* Default pills (#8d8d8d bg etc) */
+  .mobile-btn-hover:hover:not(:active) > *,
+  .mobile-btn-hover:hover:not(:active) span {
+    color: #e9e9e9 !important;
+    transition: color 150ms ease;
+  }
+  /* #d9d9d9 pills */
+  .mobile-btn-hover.mobile-btn-hover-d9:hover:not(:active) > *,
+  .mobile-btn-hover.mobile-btn-hover-d9:hover:not(:active) span {
+    color: #ffffff !important;
+    transition: color 150ms ease;
+  }
+  /* #ffffff pills */
+  .mobile-btn-hover.mobile-btn-hover-f:hover:not(:active) > *,
+  .mobile-btn-hover.mobile-btn-hover-f:hover:not(:active) span {
+    color: #d9d9d9 !important;
+    transition: color 150ms ease;
+  }
+  /* #b1b1b1 pills */
+  .mobile-btn-hover.mobile-btn-hover-b1:hover:not(:active) > *,
+  .mobile-btn-hover.mobile-btn-hover-b1:hover:not(:active) span {
+    color: #f1f1f1 !important;
+    transition: color 150ms ease;
+  }
 }
 
 
@@ -228,17 +200,16 @@ body {
 }
 
 /*
- * Mobile customiser: zero interaction feedback on buttons in panels + footer.
- * Specificity (0,2,1): double class + element beats Tailwind single-class (0,1,0).
- * Both use !important — higher specificity wins. Inline style sets --btn-bg/--btn-color
- * so :active is pinned to the exact resting colour on every button.
+ * Mobile customiser: lock bg/color across all states — no text colour changes on tap.
+ * --btn-color is always #2a2c2d (set inline on each button).
+ * Covers resting, hover, active, focus so nothing can bleed through.
  */
 .mobile-ui-panel.mobile-ui-panel button,
-.mobile-ui-footer.mobile-ui-footer button,
 .mobile-ui-panel.mobile-ui-panel button:hover,
 .mobile-ui-panel.mobile-ui-panel button:active,
 .mobile-ui-panel.mobile-ui-panel button:focus,
 .mobile-ui-panel.mobile-ui-panel button:focus-visible,
+.mobile-ui-footer.mobile-ui-footer button,
 .mobile-ui-footer.mobile-ui-footer button:hover,
 .mobile-ui-footer.mobile-ui-footer button:active,
 .mobile-ui-footer.mobile-ui-footer button:focus,
@@ -326,27 +297,40 @@ body {
   color: #ffffff;
 }
 
-.buy-pill-link:hover:not(:disabled) .buy-pill-label {
-  animation: chrome-invert-label-pulse var(--buy-pill-pulse-duration) var(--buy-pill-pulse-ease) infinite;
+@media (hover: hover) {
+  .buy-pill-link:hover:not(:disabled) .buy-pill-label {
+    animation: chrome-invert-label-pulse var(--buy-pill-pulse-duration) var(--buy-pill-pulse-ease) infinite;
+  }
 }
 
-/* Remix button — text pulses white ↔ muted (same keyframe as buy pill), always running */
+/* Remix button — text pulses #e9e9e9 ↔ #2a2c2d at half speed of buy pill */
 .remix-btn {
   background-color: #8d8d8d;
-  --remix-pulse-duration: 0.45s;
-  --remix-pulse-ease: cubic-bezier(0.76, 0, 0.24, 1);
 }
 
 .remix-btn .remix-label {
-  animation: chrome-invert-label-pulse var(--remix-pulse-duration) var(--remix-pulse-ease) infinite;
-  --chrome-invert-a: #ffffff;
-  --chrome-invert-b: #6b6e70;
+  color: #f1f1f1;
 }
 
-/* On hover: stop animation and pin to white */
-.remix-btn:hover .remix-label {
-  animation: none;
-  color: #ffffff !important;
+/* On hover (not press, desktop only): stop animation and pin to light text */
+@media (hover: hover) {
+  .remix-btn:hover:not(:active) .remix-label {
+    color: #2a2c2d !important;
+  }
+}
+
+/* Cartoon press — inset shadow on press (all buttons); persists only on selector toggles */
+button:active,
+a.buy-pill-link:active,
+.mobile-btn-hover:active,
+.remix-btn:active {
+  box-shadow: inset 1px 2px 4px rgba(0, 0, 0, 0.22);
+}
+
+/* Persist shadow on selected/toggled selector buttons only */
+.chip-hover[data-active="true"],
+.mobile-btn-hover[data-active="true"] {
+  box-shadow: inset 1px 2px 4px rgba(0, 0, 0, 0.22);
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -364,14 +348,15 @@ body {
     color: #777777;
   }
 
-  .buy-pill-link:hover:not(:disabled) .buy-pill-label {
-    animation: none !important;
-    color: #6b6e70 !important;
+  @media (hover: hover) {
+    .buy-pill-link:hover:not(:disabled) .buy-pill-label {
+      animation: none !important;
+      color: #6b6e70 !important;
+    }
   }
 
   .remix-btn .remix-label {
-    animation: none !important;
-    color: #ffffff !important;
+    color: #f1f1f1 !important;
   }
 }
 
