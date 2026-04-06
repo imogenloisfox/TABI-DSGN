@@ -641,13 +641,13 @@ export default function CustomiserExperience({
                       sliderTrackMode={sliderTrackMode}
                     />
                     <div className={`${SIDEBAR_BUTTON_ROW_2} py-0`}>
-                      <VanishButton
+                      <button
                         onClick={handleEngravingRemix}
-                        className="inline-flex h-[30px] min-w-0 w-full cursor-pointer items-center justify-center border-0 px-3 text-[14px] font-bold shadow-none outline-none lowercase mobile-btn-hover remix-btn"
+                        className="inline-flex h-[30px] min-w-0 w-full cursor-pointer items-center justify-center border-0 px-3 text-[14px] font-bold shadow-none outline-none lowercase remix-btn"
                         style={{ ...CHROME_HEADER_FONT, boxShadow: "none" }}
                       >
-                        remix
-                      </VanishButton>
+                        <span className="remix-label">remix</span>
+                      </button>
                       <VanishButton
                         onClick={resetAll}
                         className={`${customiserToolbarActionPillClass(toolbarCategory, "save")} min-w-0`}
