@@ -650,8 +650,11 @@ export default function HomepageScene({
             dragRef.current.moved = true;
             isDraggingRef.current = true;
           }
-          dragRef.current.targetX = Math.max(-12, Math.min(12, dx * 0.05));
-          dragRef.current.targetY = Math.max(-6,  Math.min(6,  -dy * 0.036));
+          const isTouch = e.pointerType === "touch";
+          const sensX = isTouch ? 0.12 : 0.05;
+          const sensY = isTouch ? 0.08 : 0.036;
+          dragRef.current.targetX = Math.max(-12, Math.min(12, dx * sensX));
+          dragRef.current.targetY = Math.max(-6,  Math.min(6,  -dy * sensY));
         }}
         onPointerUp={(e) => {
           if (isDraggingRef.current) {
@@ -688,7 +691,7 @@ export default function HomepageScene({
       </div>
 
       {/* These sit OUTSIDE the opacity wrapper so they're always visible */}
-      <div className="pointer-events-none fixed bottom-4 right-4 z-[100] hidden flex-row items-end gap-0 md:flex">
+      <div className="pointer-events-none fixed bottom-4 right-4 z-[100] flex flex-row items-end gap-0">
         <PreviewOnlinePill />
         {fpsOn ? <DevFpsPillOverlay metrics={devFpsMetrics} /> : null}
       </div>
