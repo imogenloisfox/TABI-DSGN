@@ -32,9 +32,8 @@ import {
 const JEWELLERY_PILL =
   "inline-flex h-[30px] cursor-pointer items-center justify-center border-0 px-3 text-[14px] font-bold shadow-none outline-none lowercase";
 
-function categoryPillClass(_category: ProductCategory, isSelected: boolean): string {
-  const inv = customiserToolbarInvertInteraction;
-  return `${JEWELLERY_PILL} min-w-0 w-full max-w-full text-[#2a2c2d] ${isSelected ? customiserToolbarSelectedInvert : inv}`;
+function categoryPillClass(_category: ProductCategory, _isSelected: boolean): string {
+  return `${JEWELLERY_PILL} min-w-0 w-full max-w-full text-[#2a2c2d] ${customiserToolbarInvertInteraction}`;
 }
 
 const DESKTOP_CATEGORY_BG: Record<ProductCategory, string> = {
@@ -254,6 +253,16 @@ export default function ProductSelector({ selectedCategory, selectedVariant, onS
             </VanishButton>
           ))}
         </div>
+      )}
+
+      {/* "type" sub-label — desktop only, ring and pendant only */}
+      {!mobileLayout && !variantsOnly && !categoriesOnly && activeCategory && activeCategory.variants.length > 0 && (
+        <p
+          className={stepLabelClassForCategory(selectedCategory)}
+          style={{ ...CHROME_LABEL_FONT, color: CHROME_GREY }}
+        >
+          type
+        </p>
       )}
 
       {/* Variant sub-options — rendered after categories in default order, or always when variantsOnly */}

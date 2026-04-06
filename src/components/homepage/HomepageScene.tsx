@@ -565,6 +565,57 @@ export default function HomepageScene({
   // never sees the default-camera snap.
   const [ready, setReady] = useState(false);
   const [loaderPhase, setLoaderPhase] = useState<LobbyLoaderPhase>("on");
+  const readyRef = useRef(false);
+
+  // ── WebGL recovery & load guarantee ────────────────────────────────────────
+  const markReady = useCallback(() => {
+    if (readyRef.current) return;
+    readyRef.current = true;
+    setReady(true);
+  }, []);
+
+  useEffect(() => {
+    // 1. Attach webglcontextlost on the canvas — reload to recover
+    let cleanupContextLost: (() => void) | undefined;
+    const attachTimer = setTimeout(() => {
+      const canvas = lobbySurfaceRef.current?.querySelector("canvas");
+      if (canvas) {
+        const onLost = () => window.location.reload();
+        canvas.addEventListener("webglcontextlost", onLost);
+        cleanupContextLost = () => canvas.removeEventListener("webglcontextlost", onLost);
+      }
+    }, 500);
+
+    // 2. Visibility change — if page becomes visible and was hidden long enough
+    //    that the GL context may be dead, reload
+    const hiddenAtRef = { v: 0 };
+    const onVis = () => {
+      if (document.visibilityState === "hidden") {
+        hiddenAtRef.v = Date.now();
+      } else if (hiddenAtRef.v > 0 && Date.now() - hiddenAtRef.v > 30000) {
+        // Was backgrounded for 30s+ — GL context is likely dead on mobile Safari
+        window.location.reload();
+      }
+    };
+    document.addEventListener("visibilitychange", onVis);
+
+    // 3. Hard deadline — if scene hasn't become ready within 8s, force-show the
+    //    UI anyway. The 3D may be blank but the page is usable (buttons work,
+    //    user can navigate). This prevents the permanent white screen.
+    const deadline = setTimeout(() => {
+      if (!readyRef.current) {
+        markReady();
+        setLoaderPhase("fade");
+      }
+    }, 8000);
+
+    return () => {
+      clearTimeout(attachTimer);
+      clearTimeout(deadline);
+      cleanupContextLost?.();
+      document.removeEventListener("visibilitychange", onVis);
+    };
+  }, [markReady]);
 
   const [devFpsMetrics, setDevFpsMetrics] = useState<DevFpsSample>({
     fps:    0,
@@ -575,18 +626,16 @@ export default function HomepageScene({
   devSampleRef.current = setDevFpsMetrics;
 
   return (
-    <div
-      className={`absolute inset-0 transition-opacity duration-500 ease-out${exiting ? " pointer-events-none" : ""}`}
-      style={{
-        opacity: exiting ? 0 : ready ? 1 : 0,
-        transition: exiting ? "opacity 0.4s ease" : "opacity 1200ms cubic-bezier(0.76, 0, 0.24, 1)",
-      }}
-    >
+    <div className={`absolute inset-0${exiting ? " pointer-events-none" : ""}`}>
+      {/* Canvas + drag surface — fades in when ready, fades out on exit */}
       <div
         ref={lobbySurfaceRef}
         className="absolute inset-0"
+        style={{
+          opacity: exiting ? 0 : ready ? 1 : 0,
+          transition: exiting ? "opacity 0.4s ease" : "opacity 1200ms cubic-bezier(0.76, 0, 0.24, 1)",
+        }}
         onPointerDown={(e) => {
-          if (e.pointerType === "touch") return;
           dragRef.current.isDown = true;
           dragRef.current.startX = e.clientX;
           dragRef.current.startY = e.clientY;
@@ -594,20 +643,18 @@ export default function HomepageScene({
           isDraggingRef.current = false;
         }}
         onPointerMove={(e) => {
-          if (!dragRef.current.isDown || e.pointerType === "touch") return;
+          if (!dragRef.current.isDown) return;
           const dx = e.clientX - dragRef.current.startX;
           const dy = e.clientY - dragRef.current.startY;
           if (Math.sqrt(dx * dx + dy * dy) > 5) {
             dragRef.current.moved = true;
             isDraggingRef.current = true;
           }
-          dragRef.current.targetX = Math.max(-12, Math.min(12, dx * 0.025));
-          dragRef.current.targetY = Math.max(-6,  Math.min(6,  -dy * 0.018));
+          dragRef.current.targetX = Math.max(-12, Math.min(12, dx * 0.05));
+          dragRef.current.targetY = Math.max(-6,  Math.min(6,  -dy * 0.036));
         }}
         onPointerUp={(e) => {
-          if (e.pointerType === "touch") return;
           if (isDraggingRef.current) {
-            // Suppress the subsequent click event so R3F pieces don't fire
             const el = lobbySurfaceRef.current;
             if (el) {
               el.addEventListener("click", (ev) => ev.stopPropagation(), { capture: true, once: true });
@@ -620,32 +667,37 @@ export default function HomepageScene({
         <Canvas
           className="r3f-canvas-wrapper"
           camera={{ fov: 45, position: [0, 0, 7], near: 0.01, far: 100 }}
-          // Cap DPR at 1 on low-end devices (< 4 cores); cap at 2 otherwise.
-          dpr={typeof navigator !== "undefined" && navigator.hardwareConcurrency < 4 ? 1 : [1, 2]}
+          dpr={[1, Math.min(2, typeof window !== "undefined" ? window.devicePixelRatio : 1)]}
           gl={{
-            antialias:           true,
-            toneMapping:         THREE.ACESFilmicToneMapping,
-            toneMappingExposure: 1.4,
+            antialias:                    true,
+            toneMapping:                  THREE.ACESFilmicToneMapping,
+            toneMappingExposure:          1.4,
+            powerPreference:              "low-power",
+            failIfMajorPerformanceCaveat: false,
           }}
         >
           <LobbyEntrance
             onPieceClick={onPieceClick}
             showcaseGemEpoch={showcaseGemEpoch}
             devFpsSampleRef={fpsOn ? devSampleRef : undefined}
-            onSceneReady={() => setReady(true)}
+            onSceneReady={markReady}
             onLoaderPhaseChange={setLoaderPhase}
             dragRef={dragRef}
           />
         </Canvas>
-        <div className="pointer-events-auto fixed bottom-4 right-4 z-[100] flex flex-row items-end gap-0">
-          <PreviewOnlinePill />
-          {fpsOn ? <DevFpsPillOverlay metrics={devFpsMetrics} /> : null}
-        </div>
-        <LobbyLoaderOverlay
-          phase={loaderPhase}
-          onFadeComplete={() => setLoaderPhase("off")}
-        />
       </div>
+
+      {/* These sit OUTSIDE the opacity wrapper so they're always visible */}
+      <div className="pointer-events-none fixed bottom-4 right-4 z-[100] flex flex-row items-end gap-0">
+        <PreviewOnlinePill />
+        {fpsOn ? <DevFpsPillOverlay metrics={devFpsMetrics} /> : null}
+      </div>
+
+      {/* Loader overlay — independent of canvas opacity, fades itself */}
+      <LobbyLoaderOverlay
+        phase={loaderPhase}
+        onFadeComplete={() => setLoaderPhase("off")}
+      />
     </div>
   );
 }

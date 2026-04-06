@@ -16,6 +16,13 @@ const nextConfig: NextConfig = {
   async headers() {
     return [
       {
+        // Prevent bfcache on the main page — on mobile Safari, bfcache destroys
+        // the WebGL context and the page restores frozen/blank. no-store opt-out
+        // forces a fresh load on back/forward navigation.
+        source: "/",
+        headers: [{ key: "Cache-Control", value: "no-store" }],
+      },
+      {
         // 3D model files — content-addressed by filename convention; safe to cache forever.
         source: "/:path*.glb",
         headers: [{ key: "Cache-Control", value: "public, max-age=31536000, immutable" }],

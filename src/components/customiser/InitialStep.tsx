@@ -110,7 +110,7 @@ function EngravingSection({
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
   // Typewriter placeholder — types out then deletes "type here..." character by character
-  const PLACEHOLDER_TEXT = "type here...";
+  const PLACEHOLDER_TEXT = "type engraving, adjust using sliders";
   const [placeholderDisplayed, setPlaceholderDisplayed] = useState("");
   const placeholderTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const placeholderPhaseRef = useRef<"typing" | "deleting" | "pause">("typing");
@@ -211,7 +211,7 @@ function EngravingSection({
           // Block Enter key entirely for earrings
           if (isEarring && e.key === "Enter") e.preventDefault();
         }}
-        className={`w-full max-w-[240px] resize-none border-0 text-[16px] leading-[1.2] focus:outline-none min-h-0 ${
+        className={`w-full max-w-[240px] resize-none border-0 text-[12px] leading-[1.2] focus:outline-none min-h-0 ${
           isEarring
             ? "h-full px-2 whitespace-nowrap overflow-x-auto overflow-y-hidden pt-1.5 pb-1.5"
             : "h-full px-2 pt-1.5 pb-1.5"
@@ -223,7 +223,7 @@ function EngravingSection({
         <span
           aria-hidden
           className="pointer-events-none absolute left-2 top-1.5 select-none"
-          style={{ color: "#b1b1b1", fontSize: 10, fontFamily: UI_FONT_FAMILY, lineHeight: "1.2" }}
+          style={{ color: "#b1b1b1", fontSize: 12, fontFamily: UI_FONT_FAMILY, lineHeight: "1.2" }}
         >
           {placeholderDisplayed}
           <span className="engraving-cursor-blink" style={{ opacity: 0.6 }}>|</span>
@@ -245,11 +245,7 @@ function EngravingSection({
   const slidersBlock = (
     <div
       className="flex w-[240px] flex-col gap-0"
-      style={{
-        opacity: hasText ? 1 : 0.35,
-        pointerEvents: hasText ? undefined : "none",
-        transition: "opacity 0.2s ease",
-      }}
+      style={{ pointerEvents: hasText ? undefined : "none" }}
     >
       <BarSlider
         label="Pos X"

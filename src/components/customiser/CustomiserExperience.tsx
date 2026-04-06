@@ -116,7 +116,15 @@ export default function CustomiserExperience({
   // Notify parent whenever variant changes (toolbar, remix) so mobile pills stay in sync
   useEffect(() => { onVariantChange?.(state.variant); }, [state.variant, onVariantChange]);
 
-  const [cameraResetSignal] = useState(0);
+  const [cameraResetSignal, setCameraResetSignal] = useState(0);
+
+  // Reset rotation to default when variant changes — mobile only
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    if (window.innerWidth < 768) {
+      setCameraResetSignal((n) => n + 1);
+    }
+  }, [state.variant]);
 
   // 5ms pulse — noticeable but subtle on supported devices; silently no-ops elsewhere.
   const haptic = useCallback(() => { navigator.vibrate?.(5); }, []);
@@ -267,7 +275,11 @@ export default function CustomiserExperience({
         gemPositionRight: p.gemPositionRight ?? prev.gemPositionRight,
       }));
     } else if (p.engraving) {
-      setState((prev) => ({ ...prev, engraving: { ...prev.engraving, ...p.engraving } }));
+      setState((prev) => ({
+        ...prev,
+        engraving: { ...prev.engraving, ...p.engraving },
+        ...(variantUsesGemColour(variant) && { gemstone: pickRandomGemstoneId(prev.gemstone ?? undefined) }),
+      }));
     }
     haptic();
   }, [state.variant, haptic]);
@@ -755,7 +767,7 @@ export default function CustomiserExperience({
                     showLabel={false}
                     mobileLayout
                     mobile
-                    mobileRowWidthPx={visibleTabCount * 80}
+                    mobileRowWidthPx={typeof window !== "undefined" ? Math.min(visibleTabCount * 80, window.innerWidth - 32) : visibleTabCount * 80}
                   />
                 )}
 
@@ -778,7 +790,7 @@ export default function CustomiserExperience({
               {(
                 [
                   { id: "jewellery" as MobileTab, label: "jewellery", bg: "#FFFFFF", show: true },
-                  { id: "variant" as MobileTab, label: state.category === "ring" ? "ring" : state.category === "pendant" ? "pendant" : "", bg: "#FFFFFF", show: !!state.category && state.category !== "earrings" },
+                  { id: "variant" as MobileTab, label: "type", bg: "#FFFFFF", show: !!state.category && state.category !== "earrings" },
                   { id: "gemstone" as MobileTab, label: "gemstone", bg: "#D9D9D9", show: !!state.variant && (isEarrings || (productUsesGemstone(state.variant) && variantUsesGemColour(state.variant!))) },
                   { id: "engraving" as MobileTab, label: "engraving", bg: "#B1B1B1", show: !!state.variant },
                   { id: "metal" as MobileTab, label: "metal", bg: "#8D8D8D", show: !!state.variant },

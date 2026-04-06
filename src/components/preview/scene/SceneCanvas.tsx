@@ -416,8 +416,8 @@ export default function SceneCanvas({
       className="r3f-canvas-wrapper r3f-canvas-preview"
       resize={{ scroll: false }}
       camera={CAMERA_CONFIG}
-      // Cap DPR at 1 on low-end devices (< 4 cores); cap at 2 otherwise.
-      dpr={typeof navigator !== "undefined" && navigator.hardwareConcurrency < 4 ? 1 : [1, 2]}
+      // Allow up to the device's native DPR, capped at 2.
+      dpr={[1, Math.min(2, typeof window !== "undefined" ? window.devicePixelRatio : 1)]}
       style={{
         width:           "100%",
         height:          "100%",

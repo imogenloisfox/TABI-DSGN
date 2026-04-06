@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
 interface LoopParticleTextProps {
   words:             string[];
@@ -9,38 +9,21 @@ interface LoopParticleTextProps {
   wrapperClassName?: string;
 }
 
-const ROW_PX = 30;
-const SLIDE_MS = 520;
-const HOLD_MS = 1020;
-/** Smooth deceleration — no snappy “rail” stop */
-const SLIDE_EASE = "cubic-bezier(0.16, 1, 0.3, 1)";
+const HOLD_MS = 1800;
+const FADE_MS = 350;
 
-const REDUCED_MOTION_INTERVAL_MS = 2400;
-
-const row = (w: string, i: number, className?: string, style?: React.CSSProperties) => (
-  <span
-    key={`strip-${i}`}
-    className={`flex shrink-0 items-center justify-center whitespace-nowrap leading-none ${className ?? ""}`}
-    style={{ ...style, height: ROW_PX, minHeight: ROW_PX }}
-  >
-    {w}
-  </span>
-);
-
-/**
- * Vertical strip: slides up through `[...words, ...words]` so last → first is one
- * smooth step (duplicate “A” under “E”), then transform snaps back to 0 with
- * `transition: none` — no long rewind animation.
- */
 export default function LoopParticleText({
   words,
   className,
   style,
   wrapperClassName,
 }: LoopParticleTextProps) {
-  const [index, setIndex] = useState(0);
-  const [instant, setInstant] = useState(false);
+  const [displayed, setDisplayed] = useState(words[0] ?? "");
+  const [visible, setVisible]     = useState(true);
   const [prefersReduced, setPrefersReduced] = useState(false);
+  const indexRef = useRef(0);
+  const t1 = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const t2 = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
     const mq = window.matchMedia("(prefers-reduced-motion: reduce)");
@@ -50,88 +33,32 @@ export default function LoopParticleText({
     return () => mq.removeEventListener("change", onChange);
   }, []);
 
-  const items = useMemo(
-    () => (words.length > 1 ? [...words, ...words] : words),
-    [words],
-  );
-
-  // After landing on the duplicate first row, snap scroll offset to 0 (same pixels).
-  useEffect(() => {
-    if (prefersReduced || words.length <= 1) return;
-    if (index !== words.length) return;
-    const t = window.setTimeout(() => {
-      setInstant(true);
-      setIndex(0);
-      window.requestAnimationFrame(() => {
-        window.requestAnimationFrame(() => setInstant(false));
-      });
-    }, SLIDE_MS);
-    return () => window.clearTimeout(t);
-  }, [index, prefersReduced, words.length]);
-
   useEffect(() => {
     if (words.length <= 1) return;
 
-    if (prefersReduced) {
-      const id = window.setInterval(() => {
-        setIndex((i) => (i + 1) % words.length);
-      }, REDUCED_MOTION_INTERVAL_MS);
-      return () => clearInterval(id);
+    function cycle() {
+      // fade out
+      setVisible(false);
+      t1.current = setTimeout(() => {
+        // swap word at invisible peak
+        indexRef.current = (indexRef.current + 1) % words.length;
+        setDisplayed(words[indexRef.current]);
+        // fade in
+        setVisible(true);
+        // hold then repeat
+        t2.current = setTimeout(cycle, HOLD_MS);
+      }, FADE_MS);
     }
 
-    const id = window.setInterval(() => {
-      setIndex((i) => {
-        if (i >= words.length) return i;
-        if (i === words.length - 1) return words.length;
-        return i + 1;
-      });
-    }, HOLD_MS);
-    return () => clearInterval(id);
-  }, [prefersReduced, words.length]);
+    t2.current = setTimeout(cycle, HOLD_MS);
 
-  if (words.length === 0) {
-    return null;
-  }
+    return () => {
+      if (t1.current) clearTimeout(t1.current);
+      if (t2.current) clearTimeout(t2.current);
+    };
+  }, [words]);
 
-  if (words.length === 1) {
-    return (
-      <span
-        className={wrapperClassName}
-        style={{ position: "relative", display: "inline-flex", alignItems: "center" }}
-      >
-        <span
-          className="inline-block overflow-hidden"
-          style={{ height: ROW_PX, lineHeight: `${ROW_PX}px` }}
-        >
-          <span className="flex flex-col">{row(words[0], 0, className, style)}</span>
-        </span>
-      </span>
-    );
-  }
-
-  if (prefersReduced) {
-    return (
-      <span
-        className={wrapperClassName}
-        style={{ position: "relative", display: "inline-flex", alignItems: "center" }}
-      >
-        <span
-          className="inline-block overflow-hidden"
-          style={{ height: ROW_PX, lineHeight: `${ROW_PX}px` }}
-        >
-          <span
-            className="flex flex-col"
-            style={{
-              transform:  `translate3d(0, -${(index % words.length) * ROW_PX}px, 0)`,
-              transition: "none",
-            }}
-          >
-            {words.map((w, i) => row(w, i, className, style))}
-          </span>
-        </span>
-      </span>
-    );
-  }
+  if (words.length === 0) return null;
 
   return (
     <span
@@ -139,18 +66,16 @@ export default function LoopParticleText({
       style={{ position: "relative", display: "inline-flex", alignItems: "center" }}
     >
       <span
-        className="inline-block overflow-hidden"
-        style={{ height: ROW_PX, lineHeight: `${ROW_PX}px` }}
+        className={className}
+        style={{
+          ...style,
+          display:    "inline-block",
+          whiteSpace: "nowrap",
+          opacity:    prefersReduced ? 1 : visible ? 1 : 0,
+          transition: prefersReduced ? "none" : `opacity ${FADE_MS}ms ease`,
+        }}
       >
-        <span
-          className="flex flex-col"
-          style={{
-            transform:  `translate3d(0, -${index * ROW_PX}px, 0)`,
-            transition: instant ? "none" : `transform ${SLIDE_MS}ms ${SLIDE_EASE}`,
-          }}
-        >
-          {items.map((w, i) => row(w, i, className, style))}
-        </span>
+        {displayed}
       </span>
     </span>
   );

@@ -49,7 +49,7 @@ export default function SiteHeader({
     <VanishButton
       onClick={onBack}
       className={`${CHROME_TOP_PILL_BASE} relative z-10 w-[80px] min-w-0 shrink-0 justify-center !bg-white text-[13.9px] tracking-[-0.3px] lowercase mobile-btn-hover mobile-btn-hover-f ${HEADER_CHROME_HOVER_INVERT}`}
-      style={{ ...CHROME_HEADER_FONT, color: CHROME_GREY, boxShadow: "none", fontSize: "13.9px" }}
+      style={{ ...CHROME_HEADER_FONT, color: CHROME_GREY, fontSize: "13.9px" }}
     >
       tabi dsgn
     </VanishButton>
@@ -75,7 +75,7 @@ export default function SiteHeader({
           aria-expanded={infoOpen}
           aria-controls="site-info-columns"
           className={`${CHROME_TOP_PILL_BASE} relative z-10 w-[80px] shrink-0 overflow-visible normal-case lowercase !bg-[#d9d9d9] text-[#2a2c2d] mobile-btn-hover mobile-btn-hover-d9 ${HEADER_CHROME_HOVER_INVERT}`}
-          style={{ ...CHROME_HEADER_FONT, boxShadow: "none" }}
+          style={{ ...CHROME_HEADER_FONT }}
         >
           info
         </VanishButton>
@@ -85,7 +85,7 @@ export default function SiteHeader({
             onClick={onSave}
             disabled={isSaving}
             className={`flex ${CHROME_TOP_PILL_BASE} relative z-10 w-[80px] shrink-0 justify-center overflow-visible normal-case lowercase !bg-[#b1b1b1] !text-[#2a2c2d] disabled:cursor-wait disabled:opacity-50 mobile-btn-hover mobile-btn-hover-b1 ${HEADER_CHROME_HOVER_INVERT}`}
-            style={{ ...CHROME_HEADER_FONT, boxShadow: "none" }}
+            style={{ ...CHROME_HEADER_FONT }}
           >
             {isSaving ? "saving…" : "save"}
           </VanishButton>
@@ -95,7 +95,7 @@ export default function SiteHeader({
           <button
             onClick={onRemix}
             className={`flex md:hidden ${CHROME_TOP_PILL_BASE} relative z-10 w-[80px] shrink-0 justify-center overflow-visible normal-case lowercase remix-btn`}
-            style={{ ...CHROME_HEADER_FONT, boxShadow: "none" }}
+            style={{ ...CHROME_HEADER_FONT }}
           >
             <span className="remix-label">remix</span>
           </button>
@@ -105,7 +105,7 @@ export default function SiteHeader({
           <VanishButton
             onClick={onReset}
             className={`flex md:hidden ${CHROME_TOP_PILL_BASE} relative z-10 w-[80px] shrink-0 justify-center overflow-visible normal-case lowercase !bg-[#777777] !text-[#2a2c2d] mobile-btn-hover ${HEADER_CHROME_HOVER_INVERT}`}
-            style={{ ...CHROME_HEADER_FONT, boxShadow: "none" }}
+            style={{ ...CHROME_HEADER_FONT }}
           >
             reset
           </VanishButton>
@@ -117,7 +117,7 @@ export default function SiteHeader({
             aria-expanded={playOpen}
             aria-controls="site-play-hint"
             className={`hidden md:flex ${CHROME_TOP_PILL_BASE} relative z-10 w-[80px] shrink-0 overflow-visible normal-case lowercase !bg-[#b1b1b1] text-[#2a2c2d] mobile-btn-hover mobile-btn-hover-b1 ${HEADER_CHROME_HOVER_INVERT}`}
-            style={{ ...CHROME_HEADER_FONT, boxShadow: "none" }}
+            style={{ ...CHROME_HEADER_FONT }}
           >
             play
           </VanishButton>

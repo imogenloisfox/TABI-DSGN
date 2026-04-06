@@ -159,7 +159,7 @@ const RING_JEWELLERY_VARIANT_PILL =
 export const ringJewelleryVariantPillDefault = RING_JEWELLERY_VARIANT_PILL;
 
 export const ringJewelleryVariantPillSelected =
-  `${RING_CTRL_PILL} min-w-0 w-full max-w-full truncate ${customiserToolbarSelectedInvert}`;
+  `${RING_CTRL_PILL} min-w-0 w-full max-w-full truncate`;
 
 /** Ring — metal finish; bg set via inline style on desktop, mobileBtnStyle on mobile */
 const RING_METAL_FINISH_PILL =
@@ -167,8 +167,7 @@ const RING_METAL_FINISH_PILL =
 
 export const ringMetalFinishPillDefault = RING_METAL_FINISH_PILL;
 
-export const ringMetalFinishPillSelected =
-  `${RING_CTRL_PILL} ${customiserToolbarSelectedInvert}`;
+export const ringMetalFinishPillSelected = RING_CTRL_PILL;
 
 /**
  * Customiser aside: inner column max 240px — same width as 8×30px ring size / gem swatch rows.
@@ -204,7 +203,7 @@ const PENDANT_JEWELLERY_VARIANT_PILL =
 export const pendantJewelleryVariantPillDefault = PENDANT_JEWELLERY_VARIANT_PILL;
 
 export const pendantJewelleryVariantPillSelected =
-  `${RING_CTRL_PILL} min-w-0 w-full max-w-full truncate ${customiserToolbarSelectedInvert}`;
+  `${RING_CTRL_PILL} min-w-0 w-full max-w-full truncate`;
 
 /** Pendant — metal finish; selected state matches until selection styling is defined */
 const PENDANT_METAL_FINISH_PILL =
@@ -212,8 +211,7 @@ const PENDANT_METAL_FINISH_PILL =
 
 export const pendantMetalFinishPillDefault = PENDANT_METAL_FINISH_PILL;
 
-export const pendantMetalFinishPillSelected =
-  `${RING_CTRL_PILL} ${customiserToolbarSelectedInvert}`;
+export const pendantMetalFinishPillSelected = RING_CTRL_PILL;
 
 /** Pendant — gemstone swatch selected (dark frame around gem colour) */
 export const pendantGemSwatchChipSelected =
@@ -225,8 +223,7 @@ const EARRING_METAL_FINISH_PILL =
 
 export const earringMetalFinishPillDefault = EARRING_METAL_FINISH_PILL;
 
-export const earringMetalFinishPillSelected =
-  `${RING_CTRL_PILL} ${customiserToolbarSelectedInvert}`;
+export const earringMetalFinishPillSelected = RING_CTRL_PILL;
 
 /** Wider CTA pill (start screen) */
 export const chromePillCta = `${chromePillInactive} !px-6`;

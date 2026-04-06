@@ -148,6 +148,20 @@ export default function App() {
     if (loader) loader.remove();
   }, []);
 
+  // Hard reload when page is restored from bfcache (back-forward cache) — on
+  // mobile Safari this causes a frozen/blank WebGL canvas because the GL context
+  // is destroyed but React never reinitialises it. A hard reload restores the
+  // full page cleanly.
+  useEffect(() => {
+    const onPageShow = (e: PageTransitionEvent) => {
+      if (e.persisted) {
+        window.location.reload();
+      }
+    };
+    window.addEventListener("pageshow", onPageShow);
+    return () => window.removeEventListener("pageshow", onPageShow);
+  }, []);
+
   useLayoutEffect(() => {
     const el = leftGroupRef.current;
     if (!el) return;
