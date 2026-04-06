@@ -166,8 +166,8 @@ function SeparationSystem({
 // ─── Drag camera rotation — desktop/mouse only; gives parallax depth feel ────
 
 interface DragState {
-  targetX: number;   // degrees, ±6 horizontal
-  targetY: number;   // degrees, ±3 vertical
+  targetX: number;   // degrees, ±12 horizontal
+  targetY: number;   // degrees, ±6 vertical
   isDown: boolean;
   startX: number;
   startY: number;
@@ -601,8 +601,8 @@ export default function HomepageScene({
             dragRef.current.moved = true;
             isDraggingRef.current = true;
           }
-          dragRef.current.targetX = Math.max(-6, Math.min(6, dx * 0.015));
-          dragRef.current.targetY = Math.max(-3, Math.min(3, -dy * 0.01));
+          dragRef.current.targetX = Math.max(-12, Math.min(12, dx * 0.025));
+          dragRef.current.targetY = Math.max(-6,  Math.min(6,  -dy * 0.018));
         }}
         onPointerUp={(e) => {
           if (e.pointerType === "touch") return;
