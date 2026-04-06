@@ -656,7 +656,7 @@ export default function HomepageScene({
           dragRef.current.targetX = Math.max(-12, Math.min(12, dx * sensX));
           dragRef.current.targetY = Math.max(-6,  Math.min(6,  -dy * sensY));
         }}
-        onPointerUp={(e) => {
+        onPointerUp={(_e) => {
           if (isDraggingRef.current) {
             const el = lobbySurfaceRef.current;
             if (el) {
@@ -691,7 +691,7 @@ export default function HomepageScene({
       </div>
 
       {/* These sit OUTSIDE the opacity wrapper so they're always visible */}
-      <div className="pointer-events-none fixed bottom-4 right-4 z-[100] flex flex-row items-end gap-0">
+      <div className={`pointer-events-none fixed bottom-4 right-4 z-[100] flex-row items-end gap-0${exiting ? " hidden" : " flex md:flex"}`}>
         <PreviewOnlinePill />
         {fpsOn ? <DevFpsPillOverlay metrics={devFpsMetrics} /> : null}
       </div>
