@@ -166,34 +166,42 @@ function SeparationSystem({
 // ─── Drag camera rotation — desktop/mouse only; gives parallax depth feel ────
 
 interface DragState {
-  targetX: number;   // degrees, ±15 horizontal
-  targetY: number;   // degrees, ±8 vertical
+  targetX: number;   // degrees, ±6 horizontal
+  targetY: number;   // degrees, ±3 vertical
   isDown: boolean;
   startX: number;
   startY: number;
   moved: boolean;
 }
 
-function DragCameraController({ dragRef }: { dragRef: React.RefObject<DragState> }) {
-  const { camera } = useThree();
+// Rotates the scene group ref rather than the camera — pieces tilt slightly on drag,
+// giving a parallax depth feel without changing the viewing angle of the scene.
+function DragGroupController({
+  dragRef,
+  groupRef,
+}: {
+  dragRef:  React.RefObject<DragState>;
+  groupRef: React.RefObject<THREE.Group | null>;
+}) {
   const currXRef = useRef(0);
   const currYRef = useRef(0);
 
   useFrame(() => {
     const d = dragRef.current;
-    if (!d) return;
+    const g = groupRef.current;
+    if (!d || !g) return;
 
-    const LERP   = 0.08;
-    const DECAY  = 0.95;
+    const LERP   = 0.06;
+    const DECAY  = 0.92;
     const TO_RAD = Math.PI / 180;
 
     currXRef.current += (d.targetX - currXRef.current) * LERP;
     currYRef.current += (d.targetY - currYRef.current) * LERP;
 
-    camera.rotation.y = currXRef.current * TO_RAD;
-    camera.rotation.x = currYRef.current * TO_RAD;
+    // Y-axis = horizontal drag (yaw); X-axis = vertical drag (pitch)
+    g.rotation.y = currXRef.current * TO_RAD;
+    g.rotation.x = currYRef.current * TO_RAD;
 
-    // When pointer is released, lerp target back to centre
     if (!d.isDown) {
       d.targetX *= DECAY;
       d.targetY *= DECAY;
@@ -332,6 +340,7 @@ function Scene({
   // ── Shared refs — stable across renders ────────────────────────────────────
   // Seed at correct t=0 positions so the separation system never acts on 0,0,0 origins.
   const motionStatesRef = useRef<PieceMotionState[]>(buildInitialMotionStates(pieces));
+  const groupRef = useRef<THREE.Group | null>(null);
 
   // Re-roll gems when App bumps `showcaseGemEpoch` (back from customiser); skip 0 on first paint.
   useEffect(() => {
@@ -389,7 +398,7 @@ function Scene({
       </mesh>
 
       {/* Scale down on mobile so pieces never dominate the narrow screen */}
-      <group scale={isMobile ? MOBILE_SCENE_CONFIG.scale : 1}>
+      <group ref={groupRef} scale={isMobile ? MOBILE_SCENE_CONFIG.scale : 1}>
         {pieces.map((config, i) => (
           <ShowcasePiece
             key={config.id}
@@ -428,7 +437,7 @@ function Scene({
         />
       )}
 
-      {dragRef ? <DragCameraController dragRef={dragRef} /> : null}
+      {dragRef ? <DragGroupController dragRef={dragRef} groupRef={groupRef} /> : null}
       {onExperienceReady ? <ExperienceReadyGate onReady={onExperienceReady} /> : null}
     </>
   );
@@ -592,8 +601,8 @@ export default function HomepageScene({
             dragRef.current.moved = true;
             isDraggingRef.current = true;
           }
-          dragRef.current.targetX = Math.max(-15, Math.min(15, dx * 0.04));
-          dragRef.current.targetY = Math.max(-8,  Math.min(8, -dy * 0.03));
+          dragRef.current.targetX = Math.max(-6, Math.min(6, dx * 0.015));
+          dragRef.current.targetY = Math.max(-3, Math.min(3, -dy * 0.01));
         }}
         onPointerUp={(e) => {
           if (e.pointerType === "touch") return;
