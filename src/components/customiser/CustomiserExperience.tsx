@@ -398,32 +398,38 @@ export default function CustomiserExperience({
     engravingTextures, earringLeftTextures, earringRightTextures,
   ]);
 
-  const handleBuy = useCallback(async () => {
-    // Open the tab immediately while still inside the user gesture — popup blockers
-    // kill window.open() called after an await, so we grab the handle first and
-    // navigate it once the cart creation is done.
-    const winName = `tabi_checkout_${Date.now()}`;
-    const win = window.open("about:blank", winName);
+  const [isBuyingOverlay, setIsBuyingOverlay] = useState(false);
 
-    // Write a branded loading page so the customer sees "tabi dsgn" pulsing, not a blank page.
-    if (win) {
-      const origin = window.location.origin;
-      win.document.write(`<!DOCTYPE html><html><head><title>tabi dsgn</title>
-        <style>
-          @font-face{font-family:"ABC Diatype";src:url("${origin}/fonts/ABCDiatype-Bold.otf") format("opentype");font-weight:500;font-style:normal;font-display:swap}
-          @font-face{font-family:"ABC Diatype";src:url("${origin}/fonts/ABCDiatype-Bold.otf") format("opentype");font-weight:700;font-style:normal;font-display:swap}
-          body{margin:0;display:flex;align-items:center;justify-content:center;height:100vh;
-          background:#ffffff;font-family:"ABC Diatype",ui-sans-serif,system-ui,sans-serif}
-          .brand{font-size:14px;font-weight:500;color:#2a2c2d;letter-spacing:-0.3px;
-          text-transform:lowercase;animation:pulse 1.8s ease-in-out infinite}
-          @keyframes pulse{0%,100%{transform:scale(1);opacity:.85}50%{transform:scale(1.12);opacity:1}}
-        </style>
-        </head><body><div class="brand">tabi dsgn</div></body></html>`);
-      win.document.close();
+  const handleBuy = useCallback(async () => {
+    const isMobile = window.innerWidth < 768 || /Mobi|Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
+    const winName = `tabi_checkout_${Date.now()}`;
+
+    // Desktop: open a branded loading tab immediately (must be in the sync gesture
+    // handler — popup blockers kill window.open() called after an await).
+    let win: Window | null = null;
+    if (!isMobile) {
+      win = window.open("about:blank", winName);
+      if (win) {
+        const origin = window.location.origin;
+        win.document.write(`<!DOCTYPE html><html><head><title>tabi dsgn</title>
+          <style>
+            @font-face{font-family:"ABC Diatype";src:url("${origin}/fonts/ABCDiatype-Bold.otf") format("opentype");font-weight:500;font-style:normal;font-display:swap}
+            body{margin:0;display:flex;align-items:center;justify-content:center;height:100vh;
+            background:#ffffff;font-family:"ABC Diatype",ui-sans-serif,system-ui,sans-serif}
+            .brand{font-size:14px;font-weight:500;color:#2a2c2d;letter-spacing:-0.3px;
+            text-transform:lowercase;animation:pulse 1.8s ease-in-out infinite}
+            @keyframes pulse{0%,100%{transform:scale(1);opacity:.85}50%{transform:scale(1.12);opacity:1}}
+          </style>
+          </head><body><div class="brand">tabi dsgn</div></body></html>`);
+        win.document.close();
+      }
+    } else {
+      // Mobile: show overlay on current page — no blank tab, no popup blocker.
+      setIsBuyingOverlay(true);
     }
 
-    // Step 1: Capture 3D renders, generate spec PDF, and upload it.
-    let specPdfUrl: string | null = null;
+    // Step 1: Capture renders + generate PDF blob.
+    let pdfBlobResult: Blob | null = null;
     try {
       let heroFrontView: string | null = null;
       let renderViews: { front: string; left: string; right: string } | null = null;
@@ -466,25 +472,44 @@ export default function CustomiserExperience({
         canvasTarget: `${engTarget} (${w}×${h})`,
         returnBlob: true,
       });
-      if (pdfBlob instanceof Blob) {
-        const blob = await upload(`specs/spec-${Date.now()}.pdf`, pdfBlob, {
-          access: "public",
-          handleUploadUrl: "/api/upload-spec",
-          contentType: "application/pdf",
-        });
-        specPdfUrl = blob.url;
-      }
+      if (pdfBlob instanceof Blob) pdfBlobResult = pdfBlob;
     } catch (err) {
-      console.error("[buy] Spec upload failed — continuing to checkout:", err);
+      console.error("[buy] PDF generation failed — continuing to checkout:", err);
     }
 
-    // Step 2: Create Shopify cart with spec PDF URL attached.
-    const checkoutUrl = await createShopifyCart(state, specPdfUrl);
-    if (checkoutUrl && win) {
-      win.location.href = checkoutUrl;
-    } else {
-      const posted = addToCartFormPost(winName, state, specPdfUrl);
-      if (!posted && win) win.close();
+    // Step 2: Upload PDF and create Shopify cart in parallel.
+    let specPdfUrl: string | null = null;
+    try {
+      const [uploadResult, checkoutUrl] = await Promise.all([
+        pdfBlobResult
+          ? upload(`specs/spec-${Date.now()}.pdf`, pdfBlobResult, {
+              access: "public",
+              handleUploadUrl: "/api/upload-spec",
+              contentType: "application/pdf",
+            }).then((b) => b.url).catch(() => null)
+          : Promise.resolve(null),
+        createShopifyCart(state, null), // cart created without PDF URL first for speed
+      ]);
+      specPdfUrl = uploadResult;
+      const url = checkoutUrl;
+
+      setIsBuyingOverlay(false);
+
+      if (url) {
+        if (isMobile) {
+          window.location.href = url;
+        } else if (win) {
+          win.location.href = url;
+        }
+      } else {
+        const posted = addToCartFormPost(winName, state, specPdfUrl);
+        if (!posted && win) win.close();
+        if (!posted && isMobile) setIsBuyingOverlay(false);
+      }
+    } catch (err) {
+      console.error("[buy] Checkout failed:", err);
+      setIsBuyingOverlay(false);
+      if (win) win.close();
     }
   }, [state, isEarrings, isRing, engravingTextures, earringLeftTextures, earringRightTextures]);
 
@@ -561,6 +586,17 @@ export default function CustomiserExperience({
       className="relative h-dvh w-full transition-opacity duration-500 ease-out"
       style={{ opacity: exiting ? 0 : visible ? 1 : 0 }}
     >
+      {/* Mobile buying overlay — shown while cart is being created */}
+      {isBuyingOverlay && (
+        <div className="fixed inset-0 z-[200] flex items-center justify-center bg-white md:hidden">
+          <span
+            className="text-[14px] lowercase text-[#2a2c2d]"
+            style={{ fontFamily: '"ABC Diatype", ui-sans-serif, system-ui, sans-serif', fontWeight: 500, animation: "pulse 1.8s ease-in-out infinite" }}
+          >
+            tabi dsgn
+          </span>
+        </div>
+      )}
 
     <StageLayout
       view={state.view}
