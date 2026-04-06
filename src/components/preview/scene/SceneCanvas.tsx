@@ -112,19 +112,19 @@ function CaptureHelper({
     const savedBg = scene.background;
     scene.background = new THREE.Color(0xffffff);
 
-    // Match on-screen product scale: use the same orbit radius as the live preview
-    // (ProductModel maps zoom ↔ scale from ORBIT_DISTANCE / DEFAULT_ORBIT_DISTANCE).
-    const offset    = camera.position.clone().sub(savedTarget);
-    const spherical = new THREE.Spherical().setFromVector3(offset);
-    const { phi } = spherical;
-    const captureRadius = Math.max(1e-4, spherical.radius);
+    // Always capture from default distance at equatorial phi (PI/2 = face-on).
+    // This ensures renders are consistently front-facing regardless of where the
+    // user has orbited, and left/right are pure Y-axis (azimuthal) rotations only.
+    const captureRadius = DEFAULT_ORBIT_DISTANCE;
+    const capturePhi    = Math.PI / 2; // equatorial — looking straight at the piece
+    const captureTarget = new THREE.Vector3(0, 0, 0);
 
     async function captureAt(theta: number): Promise<string> {
       const dir = new THREE.Vector3().setFromSpherical(
-        new THREE.Spherical(captureRadius, phi, theta),
+        new THREE.Spherical(captureRadius, capturePhi, theta),
       );
-      camera.position.copy(savedTarget).add(dir);
-      camera.lookAt(savedTarget);
+      camera.position.copy(captureTarget).add(dir);
+      camera.lookAt(captureTarget);
       if (controls) controls.update();
 
       await new Promise<void>((r) => setTimeout(r, 60));
@@ -174,10 +174,10 @@ function CaptureHelper({
     const savedBg = scene.background;
     scene.background = new THREE.Color(0xffffff);
 
-    const offset    = camera.position.clone().sub(savedTarget);
-    const spherical = new THREE.Spherical().setFromVector3(offset);
-    const { phi } = spherical;
-    const r = Math.max(1e-4, spherical.radius);
+    // Always render from default distance, equatorial phi, theta=0 (front face-on).
+    const r             = DEFAULT_ORBIT_DISTANCE;
+    const capturePhi    = Math.PI / 2;
+    const captureTarget = new THREE.Vector3(0, 0, 0);
 
     const prevDpr = gl.getPixelRatio();
     const heroDpr = Math.min(2.5, Math.max(2, prevDpr * 1.5));
@@ -186,9 +186,9 @@ function CaptureHelper({
     gl.setSize(cw, ch, false);
     syncCameraAspect();
 
-    const dir = new THREE.Vector3().setFromSpherical(new THREE.Spherical(r, phi, 0));
-    camera.position.copy(savedTarget).add(dir);
-    camera.lookAt(savedTarget);
+    const dir = new THREE.Vector3().setFromSpherical(new THREE.Spherical(r, capturePhi, 0));
+    camera.position.copy(captureTarget).add(dir);
+    camera.lookAt(captureTarget);
     if (controls) controls.update();
 
     await new Promise<void>((resolve) => setTimeout(resolve, 80));
