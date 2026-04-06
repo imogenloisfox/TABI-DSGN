@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useCallback, useEffect, useRef } from "react";
+import React, { useState, useCallback, useEffect, useRef } from "react";
 import type {
   CustomiserState,
   ProductCategory,
@@ -25,7 +25,7 @@ import {
 import { createShopifyCart, addToCartFormPost } from "@/lib/shopify/createCart";
 import { upload } from "@vercel/blob/client";
 import { getShopifyProductUrl } from "@/lib/shopifyProductUrl";
-import { buildStateFromPreset, captureCurrentAsPreset } from "@/lib/remixPresets";
+import { buildStateFromPreset, captureCurrentAsPreset, ENGRAVING_REMIX_PRESETS } from "@/lib/remixPresets";
 import type { RemixPreset } from "@/lib/remixPresets";
 import { useEngravingTexture, CANVAS_SIZE } from "@/hooks/useEngravingTexture";
 import { getGemstone, pickRandomGemstoneId } from "@/data/gemstones";
@@ -73,6 +73,7 @@ export interface CustomiserActions {
   save:  () => void;
   reset: () => void;
   buy:   () => Promise<void>;
+  remix: () => void;
 }
 
 interface CustomiserExperienceProps {
@@ -235,6 +236,42 @@ export default function CustomiserExperience({
   const setEngravingRight = useCallback((engravingRight: EngravingParams) => {
     setState((prev) => ({ ...prev, engravingRight }));
   }, []);
+
+  // Engraving-only remix — picks a random preset for the current product, applies text + position only.
+  // Last index tracked per variant so the same preset is never shown twice in a row.
+  const lastEngravingIdxRef = useRef<Record<string, number>>({});
+
+  const handleEngravingRemix = useCallback(() => {
+    const variant = state.variant;
+    if (!variant) return;
+    const presets = ENGRAVING_REMIX_PRESETS[variant];
+    if (!presets || presets.length === 0) return;
+
+    const lastIdx = lastEngravingIdxRef.current[variant] ?? -1;
+    let idx: number;
+    if (presets.length === 1) {
+      idx = 0;
+    } else {
+      do { idx = Math.floor(Math.random() * presets.length); }
+      while (idx === lastIdx);
+    }
+    lastEngravingIdxRef.current[variant] = idx;
+    const p = presets[idx];
+
+    if (variant === "earrings") {
+      setState((prev) => ({
+        ...prev,
+        engravingLeft:  { ...prev.engravingLeft,  text: p.leftText  ?? prev.engravingLeft.text,  offsetX: p.offsetX, offsetY: p.offsetY, fontSize: p.fontSize, lineSpacing: p.lineSpacing },
+        engravingRight: { ...prev.engravingRight, text: p.rightText ?? prev.engravingRight.text, offsetX: p.offsetX, offsetY: p.offsetY, fontSize: p.fontSize, lineSpacing: p.lineSpacing },
+      }));
+    } else {
+      setState((prev) => ({
+        ...prev,
+        engraving: { ...prev.engraving, text: p.text, offsetX: p.offsetX, offsetY: p.offsetY, fontSize: p.fontSize, lineSpacing: p.lineSpacing },
+      }));
+    }
+    haptic();
+  }, [state.variant, haptic]);
 
   const setFinish = useCallback((finish: FinishType) => {
     haptic();
@@ -459,8 +496,10 @@ export default function CustomiserExperience({
   resetAllRef.current = resetAll;
   const handleBuyRef = useRef(handleBuy);
   handleBuyRef.current = handleBuy;
+  const handleEngravingRemixRef = useRef(handleEngravingRemix);
+  handleEngravingRemixRef.current = handleEngravingRemix;
   useEffect(() => {
-    onRegisterActions?.({ save: () => handleExportSpecRef.current(), reset: () => resetAllRef.current(), buy: () => handleBuyRef.current() });
+    onRegisterActions?.({ save: () => handleExportSpecRef.current(), reset: () => resetAllRef.current(), buy: () => handleBuyRef.current(), remix: () => handleEngravingRemixRef.current() });
     return () => { onRegisterActions?.(null); };
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
@@ -502,6 +541,22 @@ export default function CustomiserExperience({
     !!state.variant, // metal
     isRing, // size
   ].filter(Boolean).length;
+
+  // Mobile tab width — computed so all visible tabs fit within the viewport.
+  // Uses Math.floor((viewportWidth - leftPad) / tabCount), min 55px.
+  // If even 55px tabs don't fit, the container falls back to overflow-x-auto.
+  const [tabWidthPx, setTabWidthPx] = useState(80);
+  useEffect(() => {
+    const update = () => {
+      if (window.innerWidth >= 768) return;
+      const usable = window.innerWidth - 16; // 16px left padding
+      setTabWidthPx(Math.max(55, Math.floor(usable / visibleTabCount)));
+    };
+    update();
+    window.addEventListener("resize", update);
+    return () => window.removeEventListener("resize", update);
+  }, [visibleTabCount]);
+  const mobileTabsNeedScroll = tabWidthPx === 55 && 55 * visibleTabCount > window.innerWidth - 16;
 
   /** Bumps after chrome height settles (debounced — avoids spamming resync while padding tracks each frame). */
   const [previewLayoutEpoch, setPreviewLayoutEpoch] = useState(0);
@@ -587,8 +642,8 @@ export default function CustomiserExperience({
                     />
                     <div className={`${SIDEBAR_BUTTON_ROW_2} py-0`}>
                       <VanishButton
-                        onClick={onRemix}
-                        className={`${customiserToolbarActionPillClass(toolbarCategory, "reset")} min-w-0`}
+                        onClick={handleEngravingRemix}
+                        className="inline-flex h-[30px] min-w-0 w-full cursor-pointer items-center justify-center border-0 px-3 text-[14px] font-bold shadow-none outline-none lowercase mobile-btn-hover remix-btn"
                         style={{ ...CHROME_HEADER_FONT, boxShadow: "none" }}
                       >
                         remix
@@ -725,16 +780,22 @@ export default function CustomiserExperience({
             {/* ── Mobile tab bar — fixed bottom, left-aligned pill tabs ── */}
             <div
               className="mobile-ui-footer fixed inset-x-0 bottom-0 z-40 flex items-end gap-0 bg-transparent pl-4 md:hidden"
-              style={{ paddingBottom: "calc(16px + env(safe-area-inset-bottom))" }}
+              style={{
+                paddingBottom: "calc(16px + env(safe-area-inset-bottom))",
+                overflowX: mobileTabsNeedScroll ? "auto" : undefined,
+                WebkitOverflowScrolling: mobileTabsNeedScroll ? "touch" : undefined,
+                scrollbarWidth: mobileTabsNeedScroll ? "none" : undefined,
+                msOverflowStyle: mobileTabsNeedScroll ? "none" : undefined,
+              } as React.CSSProperties}
             >
               {(
                 [
-                  { id: "jewellery" as MobileTab, label: "jewellery", w: "w-[80px]", bg: "#FFFFFF", show: true },
-                  { id: "variant" as MobileTab, label: state.category === "ring" ? "ring" : state.category === "pendant" ? "pendant" : "", w: "w-[80px]", bg: "#FFFFFF", show: !!state.category && state.category !== "earrings" },
-                  { id: "gemstone" as MobileTab, label: "gemstone", w: "w-[80px]", bg: "#D9D9D9", show: !!state.variant && (isEarrings || (productUsesGemstone(state.variant) && variantUsesGemColour(state.variant!))) },
-                  { id: "engraving" as MobileTab, label: "engraving", w: "w-[80px]", bg: "#B1B1B1", show: !!state.variant },
-                  { id: "metal" as MobileTab, label: "metal", w: "w-[80px]", bg: "#8D8D8D", show: !!state.variant },
-                  { id: "size" as MobileTab, label: "ring size", w: "w-[80px]", bg: "#676767", show: isRing },
+                  { id: "jewellery" as MobileTab, label: "jewellery", bg: "#FFFFFF", show: true },
+                  { id: "variant" as MobileTab, label: state.category === "ring" ? "ring" : state.category === "pendant" ? "pendant" : "", bg: "#FFFFFF", show: !!state.category && state.category !== "earrings" },
+                  { id: "gemstone" as MobileTab, label: "gemstone", bg: "#D9D9D9", show: !!state.variant && (isEarrings || (productUsesGemstone(state.variant) && variantUsesGemColour(state.variant!))) },
+                  { id: "engraving" as MobileTab, label: "engraving", bg: "#B1B1B1", show: !!state.variant },
+                  { id: "metal" as MobileTab, label: "metal", bg: "#8D8D8D", show: !!state.variant },
+                  { id: "size" as MobileTab, label: "ring size", bg: "#676767", show: isRing },
                 ] as const
               )
                 .filter((t) => t.show)
@@ -742,8 +803,8 @@ export default function CustomiserExperience({
                   <VanishButton
                     key={t.id}
                     onClick={() => toggleTab(t.id)}
-                    className={`inline-flex h-[30px] ${t.w} shrink-0 items-center justify-center border-0 text-[14px] font-bold lowercase shadow-none outline-none text-[#2a2c2d] mobile-btn-hover${/^#d9d9d9$/i.test(t.bg) ? " mobile-btn-hover-d9" : /^#ffffff$/i.test(t.bg) ? " mobile-btn-hover-f" : /^#b1b1b1$/i.test(t.bg) ? " mobile-btn-hover-b1" : ""}`}
-                    style={{ ...CHROME_HEADER_FONT, backgroundColor: t.bg, color: activeTab === t.id ? "#e9e9e9" : "#2a2c2d", ["--btn-bg" as string]: t.bg, ["--btn-color" as string]: "#2a2c2d" }}
+                    className={`inline-flex h-[30px] shrink-0 items-center justify-center border-0 text-[14px] font-bold lowercase shadow-none outline-none text-[#2a2c2d] mobile-btn-hover${/^#d9d9d9$/i.test(t.bg) ? " mobile-btn-hover-d9" : /^#ffffff$/i.test(t.bg) ? " mobile-btn-hover-f" : /^#b1b1b1$/i.test(t.bg) ? " mobile-btn-hover-b1" : ""}`}
+                    style={{ ...CHROME_HEADER_FONT, width: tabWidthPx, backgroundColor: t.bg, color: activeTab === t.id ? "#e9e9e9" : "#2a2c2d", ["--btn-bg" as string]: t.bg, ["--btn-color" as string]: "#2a2c2d" }}
                     data-active={activeTab === t.id ? "true" : undefined}
                   >
                     {t.label}

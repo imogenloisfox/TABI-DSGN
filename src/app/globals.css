@@ -325,6 +325,25 @@ body {
   animation: chrome-invert-label-pulse var(--buy-pill-pulse-duration) var(--buy-pill-pulse-ease) infinite;
 }
 
+/* Remix button — continuous colour loop through greyscale palette */
+@keyframes remix-cycle {
+  0%   { background-color: #ffffff; color: #000000; }
+  20%  { background-color: #d9d9d9; color: #000000; }
+  40%  { background-color: #b1b1b1; color: #000000; }
+  60%  { background-color: #8d8d8d; color: #ffffff; }
+  80%  { background-color: #676767; color: #ffffff; }
+  100% { background-color: #ffffff; color: #000000; }
+}
+
+.remix-btn {
+  animation: remix-cycle 4s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+}
+
+/* Remix button: during hover, pin to current cycle colour (no jarring jump) */
+.remix-btn:hover {
+  animation-play-state: paused;
+}
+
 @media (prefers-reduced-motion: reduce) {
   *,
   *::before,
@@ -343,6 +362,11 @@ body {
   .buy-pill-link:hover:not(:disabled) .buy-pill-label {
     animation: none !important;
     color: #6b6e70 !important;
+  }
+
+  .remix-btn {
+    animation: none !important;
+    background-color: #8d8d8d !important;
   }
 }
 

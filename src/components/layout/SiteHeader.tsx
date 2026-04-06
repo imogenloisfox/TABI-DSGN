@@ -94,7 +94,7 @@ export default function SiteHeader({
         {showRemixButton && onRemix ? (
           <VanishButton
             onClick={onRemix}
-            className={`flex md:hidden ${CHROME_TOP_PILL_BASE} relative z-10 w-[80px] shrink-0 justify-center overflow-visible normal-case lowercase !bg-[#8D8D8D] text-[#2a2c2d] mobile-btn-hover ${HEADER_CHROME_HOVER_INVERT}`}
+            className={`flex md:hidden ${CHROME_TOP_PILL_BASE} relative z-10 w-[80px] shrink-0 justify-center overflow-visible normal-case lowercase text-[#2a2c2d] mobile-btn-hover remix-btn ${HEADER_CHROME_HOVER_INVERT}`}
             style={{ ...CHROME_HEADER_FONT, boxShadow: "none" }}
           >
             remix

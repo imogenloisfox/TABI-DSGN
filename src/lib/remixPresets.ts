@@ -107,6 +107,80 @@ function remixPresetsFromShowcase(): RemixPreset[] {
   });
 }
 
+// ─── Engraving-only remix presets ─────────────────────────────────────────────
+// Keyed by ProductVariant. Each entry lists 5 engraving designs scoped to the
+// piece's safe zone. Remix cycles these without touching finish, stone, or gem position.
+
+export interface EngravingRemixPreset {
+  text:        string;
+  offsetX:     number;
+  offsetY:     number;
+  fontSize:    number;
+  lineSpacing: number;
+  // Earrings only:
+  leftText?:   string;
+  rightText?:  string;
+}
+
+export const ENGRAVING_REMIX_PRESETS: Partial<Record<string, EngravingRemixPreset[]>> = {
+  ringClassic: [
+    { text: "amor",     offsetX:  0.00, offsetY:  0.00, fontSize: 0.55, lineSpacing: 0.6 },
+    { text: "forever",  offsetX: -0.016, offsetY: 0.016, fontSize: 0.45, lineSpacing: 0.6 },
+    { text: "moi",      offsetX:  0.04, offsetY:  0.00, fontSize: 0.65, lineSpacing: 0.6 },
+    { text: "sempre",   offsetX:  0.00, offsetY: -0.016, fontSize: 0.50, lineSpacing: 0.6 },
+    { text: "toujours", offsetX: -0.032, offsetY: 0.016, fontSize: 0.40, lineSpacing: 0.6 },
+  ],
+  ringClassicNoGem: [
+    { text: "amor",     offsetX:  0.00, offsetY:  0.00, fontSize: 0.55, lineSpacing: 0.6 },
+    { text: "forever",  offsetX: -0.016, offsetY: 0.016, fontSize: 0.45, lineSpacing: 0.6 },
+    { text: "moi",      offsetX:  0.04, offsetY:  0.00, fontSize: 0.65, lineSpacing: 0.6 },
+    { text: "sempre",   offsetX:  0.00, offsetY: -0.016, fontSize: 0.50, lineSpacing: 0.6 },
+    { text: "toujours", offsetX: -0.032, offsetY: 0.016, fontSize: 0.40, lineSpacing: 0.6 },
+  ],
+  ringConcave: [
+    { text: "luna",   offsetX:  0.00, offsetY:  0.00, fontSize: 0.55, lineSpacing: 0.6 },
+    { text: "étoile", offsetX: -0.016, offsetY: 0.00, fontSize: 0.50, lineSpacing: 0.6 },
+    { text: "soir",   offsetX:  0.016, offsetY: 0.016, fontSize: 0.60, lineSpacing: 0.6 },
+    { text: "nuit",   offsetX:  0.00, offsetY: -0.016, fontSize: 0.65, lineSpacing: 0.6 },
+    { text: "ciel",   offsetX:  0.032, offsetY:  0.00, fontSize: 0.58, lineSpacing: 0.6 },
+  ],
+  ringConcaveNoGem: [
+    { text: "luna",   offsetX:  0.00, offsetY:  0.00, fontSize: 0.55, lineSpacing: 0.6 },
+    { text: "étoile", offsetX: -0.016, offsetY: 0.00, fontSize: 0.50, lineSpacing: 0.6 },
+    { text: "soir",   offsetX:  0.016, offsetY: 0.016, fontSize: 0.60, lineSpacing: 0.6 },
+    { text: "nuit",   offsetX:  0.00, offsetY: -0.016, fontSize: 0.65, lineSpacing: 0.6 },
+    { text: "ciel",   offsetX:  0.032, offsetY:  0.00, fontSize: 0.58, lineSpacing: 0.6 },
+  ],
+  pendantOne: [
+    { text: "âme",     offsetX: 0.08, offsetY:  0.00, fontSize: 0.55, lineSpacing: 0.6 },
+    { text: "lumière", offsetX: 0.064, offsetY: 0.016, fontSize: 0.45, lineSpacing: 0.6 },
+    { text: "grace",   offsetX: 0.08, offsetY:  0.00, fontSize: 0.50, lineSpacing: 0.6 },
+    { text: "bloom",   offsetX: 0.096, offsetY:-0.016, fontSize: 0.55, lineSpacing: 0.6 },
+    { text: "divine",  offsetX: 0.064, offsetY: 0.016, fontSize: 0.48, lineSpacing: 0.6 },
+  ],
+  pendantTwo: [
+    { text: "âme",     offsetX: 0.08, offsetY:  0.00, fontSize: 0.55, lineSpacing: 0.6 },
+    { text: "lumière", offsetX: 0.064, offsetY: 0.016, fontSize: 0.45, lineSpacing: 0.6 },
+    { text: "grace",   offsetX: 0.08, offsetY:  0.00, fontSize: 0.50, lineSpacing: 0.6 },
+    { text: "bloom",   offsetX: 0.096, offsetY:-0.016, fontSize: 0.55, lineSpacing: 0.6 },
+    { text: "divine",  offsetX: 0.064, offsetY: 0.016, fontSize: 0.48, lineSpacing: 0.6 },
+  ],
+  pendantMesmo: [
+    { text: "doux",    offsetX: 0.08, offsetY:  0.00, fontSize: 0.55, lineSpacing: 0.6 },
+    { text: "soie",    offsetX: 0.064, offsetY: 0.00, fontSize: 0.60, lineSpacing: 0.6 },
+    { text: "velours", offsetX: 0.048, offsetY: 0.016, fontSize: 0.45, lineSpacing: 0.6 },
+    { text: "perle",   offsetX: 0.08, offsetY: -0.016, fontSize: 0.55, lineSpacing: 0.6 },
+    { text: "nacre",   offsetX: 0.096, offsetY: 0.00, fontSize: 0.50, lineSpacing: 0.6 },
+  ],
+  earrings: [
+    { text: "",  leftText: "oui",  rightText: "non",  offsetX: 0.00, offsetY:  0.00, fontSize: 0.25, lineSpacing: 0.6 },
+    { text: "",  leftText: "sol",  rightText: "luna", offsetX: 0.00, offsetY: -0.016, fontSize: 0.28, lineSpacing: 0.6 },
+    { text: "",  leftText: "jour", rightText: "nuit", offsetX: 0.00, offsetY:  0.016, fontSize: 0.22, lineSpacing: 0.6 },
+    { text: "",  leftText: "toi",  rightText: "moi",  offsetX: 0.00, offsetY:  0.00, fontSize: 0.30, lineSpacing: 0.6 },
+    { text: "",  leftText: "or",   rightText: "feu",  offsetX: 0.00, offsetY: -0.016, fontSize: 0.28, lineSpacing: 0.6 },
+  ],
+};
+
 export const REMIX_PRESETS: RemixPreset[] = [
   ...remixPresetsFromShowcase(),
   {

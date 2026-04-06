@@ -138,6 +138,8 @@ function EngravingSection({
 
   const textareaHeight = isEarring ? "h-[40px]" : compact ? "h-[48px]" : "h-[96px]";
 
+  const hasText = value.text.trim().length > 0;
+
   const textareaBlock = (
     <div
       className={`relative ${textareaHeight} w-[240px]`}
@@ -146,6 +148,7 @@ function EngravingSection({
         ref={textareaRef}
         rows={isEarring ? 1 : compact ? 2 : 5}
         value={value.text}
+        placeholder="Type here..."
         onChange={(e) => handleTextChange(e.target.value)}
         onFocus={() => setIsFocused(true)}
         onBlur={() => setIsFocused(false)}
@@ -157,12 +160,13 @@ function EngravingSection({
           isEarring
             ? "h-full px-2 whitespace-nowrap overflow-x-auto overflow-y-hidden pt-1.5 pb-1.5"
             : "h-full px-2 pt-1.5 pb-1.5"
-        } bg-[#ffffff] text-[#2a2c2d]`}
+        } bg-[#ffffff] text-[#2a2c2d] placeholder:text-[#b1b1b1] placeholder:font-normal`}
         style={{
           fontFamily: UI_FONT_FAMILY,
         }}
       />
-      {!isFocused && (
+      {/* Blinking cursor only when there's text and the field is unfocused */}
+      {!isFocused && hasText && (
         <span
           aria-hidden
           className={`engraving-cursor-blink pointer-events-none absolute left-2 select-none text-[16px] leading-[1.2] top-1.5`}
@@ -175,7 +179,14 @@ function EngravingSection({
   );
 
   const slidersBlock = (
-    <div className="flex w-[240px] flex-col gap-0">
+    <div
+      className="flex w-[240px] flex-col gap-0"
+      style={{
+        opacity: hasText ? 1 : 0.35,
+        pointerEvents: hasText ? undefined : "none",
+        transition: "opacity 0.2s ease",
+      }}
+    >
       <BarSlider
         label="Pos X"
         value={value.offsetX}

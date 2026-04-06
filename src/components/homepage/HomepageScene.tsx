@@ -163,6 +163,48 @@ function SeparationSystem({
   return null;
 }
 
+// ─── Drag camera rotation — desktop/mouse only; gives parallax depth feel ────
+
+interface DragState {
+  targetX: number;   // degrees, ±15 horizontal
+  targetY: number;   // degrees, ±8 vertical
+  isDown: boolean;
+  startX: number;
+  startY: number;
+  moved: boolean;
+}
+
+function DragCameraController({ dragRef }: { dragRef: React.RefObject<DragState> }) {
+  const { camera } = useThree();
+  const currXRef = useRef(0);
+  const currYRef = useRef(0);
+
+  useFrame(() => {
+    const d = dragRef.current;
+    if (!d) return;
+
+    const LERP   = 0.08;
+    const DECAY  = 0.95;
+    const TO_RAD = Math.PI / 180;
+
+    currXRef.current += (d.targetX - currXRef.current) * LERP;
+    currYRef.current += (d.targetY - currYRef.current) * LERP;
+
+    camera.rotation.y = currXRef.current * TO_RAD;
+    camera.rotation.x = currYRef.current * TO_RAD;
+
+    // When pointer is released, lerp target back to centre
+    if (!d.isDown) {
+      d.targetX *= DECAY;
+      d.targetY *= DECAY;
+      if (Math.abs(d.targetX) < 0.01) d.targetX = 0;
+      if (Math.abs(d.targetY) < 0.01) d.targetY = 0;
+    }
+  });
+
+  return null;
+}
+
 // ─── Mobile camera — wider FOV so pieces spread across the narrow viewport ────
 
 function MobileCameraAdjust({ enabled, posZ }: { enabled: boolean; posZ?: number }) {
@@ -251,10 +293,12 @@ function Scene({
   onPieceClick,
   showcaseGemEpoch,
   onExperienceReady,
+  dragRef,
 }: {
   onPieceClick:         (category: ProductCategory, variant: ProductVariant) => void;
   showcaseGemEpoch:     number;
   onExperienceReady?:   () => void;
+  dragRef?:             React.RefObject<DragState>;
 }) {
   const showColliders = false;
   const isMobile      = typeof window !== "undefined" && window.innerWidth < 768;
@@ -384,6 +428,7 @@ function Scene({
         />
       )}
 
+      {dragRef ? <DragCameraController dragRef={dragRef} /> : null}
       {onExperienceReady ? <ExperienceReadyGate onReady={onExperienceReady} /> : null}
     </>
   );
@@ -446,12 +491,14 @@ function LobbyEntrance({
   devFpsSampleRef,
   onSceneReady,
   onLoaderPhaseChange,
+  dragRef,
 }: {
   onPieceClick:          (category: ProductCategory, variant: ProductVariant) => void;
   showcaseGemEpoch:      number;
   devFpsSampleRef?:      RefObject<(sample: DevFpsSample) => void> | null;
   onSceneReady?:         () => void;
   onLoaderPhaseChange?:  (phase: LobbyLoaderPhase) => void;
+  dragRef?:              RefObject<DragState>;
 }) {
   const fadeStartedRef = useRef(false);
 
@@ -474,6 +521,7 @@ function LobbyEntrance({
           onPieceClick={onPieceClick}
           showcaseGemEpoch={showcaseGemEpoch}
           onExperienceReady={beginFadeOut}
+          dragRef={dragRef}
         />
       </Suspense>
       {devFpsSampleRef ? <DevFpsMetricsCollector onSampleRef={devFpsSampleRef} /> : null}
@@ -494,6 +542,13 @@ export default function HomepageScene({
 }) {
   const fpsOn = showFpsOverlay();
   const lobbySurfaceRef = useRef<HTMLDivElement>(null);
+
+  // Drag rotation — mouse only; touch drives piece orbits, not camera
+  const dragRef = useRef<DragState>({
+    targetX: 0, targetY: 0,
+    isDown: false, startX: 0, startY: 0, moved: false,
+  });
+  const isDraggingRef = useRef(false);
 
   // Hide the entire scene until ExperienceReadyGate fires (2 rAFs after scene
   // commit inside the Canvas). This guarantees the first GL draw has landed and
@@ -518,7 +573,41 @@ export default function HomepageScene({
         transition: exiting ? "opacity 0.4s ease" : "opacity 1200ms cubic-bezier(0.76, 0, 0.24, 1)",
       }}
     >
-      <div ref={lobbySurfaceRef} className="absolute inset-0">
+      <div
+        ref={lobbySurfaceRef}
+        className="absolute inset-0"
+        onPointerDown={(e) => {
+          if (e.pointerType === "touch") return;
+          dragRef.current.isDown = true;
+          dragRef.current.startX = e.clientX;
+          dragRef.current.startY = e.clientY;
+          dragRef.current.moved = false;
+          isDraggingRef.current = false;
+        }}
+        onPointerMove={(e) => {
+          if (!dragRef.current.isDown || e.pointerType === "touch") return;
+          const dx = e.clientX - dragRef.current.startX;
+          const dy = e.clientY - dragRef.current.startY;
+          if (Math.sqrt(dx * dx + dy * dy) > 5) {
+            dragRef.current.moved = true;
+            isDraggingRef.current = true;
+          }
+          dragRef.current.targetX = Math.max(-15, Math.min(15, dx * 0.04));
+          dragRef.current.targetY = Math.max(-8,  Math.min(8, -dy * 0.03));
+        }}
+        onPointerUp={(e) => {
+          if (e.pointerType === "touch") return;
+          if (isDraggingRef.current) {
+            // Suppress the subsequent click event so R3F pieces don't fire
+            const el = lobbySurfaceRef.current;
+            if (el) {
+              el.addEventListener("click", (ev) => ev.stopPropagation(), { capture: true, once: true });
+            }
+          }
+          dragRef.current.isDown = false;
+          isDraggingRef.current = false;
+        }}
+      >
         <Canvas
           className="r3f-canvas-wrapper"
           camera={{ fov: 45, position: [0, 0, 7], near: 0.01, far: 100 }}
@@ -536,6 +625,7 @@ export default function HomepageScene({
             devFpsSampleRef={fpsOn ? devSampleRef : undefined}
             onSceneReady={() => setReady(true)}
             onLoaderPhaseChange={setLoaderPhase}
+            dragRef={dragRef}
           />
         </Canvas>
         <div className="pointer-events-auto fixed bottom-4 right-4 z-[100] flex flex-row items-end gap-0">

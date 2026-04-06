@@ -10,7 +10,6 @@ import {
 } from "react";
 import type { CustomiserActions } from "./customiser/CustomiserExperience";
 import type { ProductCategory, ProductVariant } from "@/lib/customiser/types";
-import { REMIX_PRESETS } from "@/lib/remixPresets";
 import type { RemixPreset } from "@/lib/remixPresets";
 import HomepageScene from "./homepage/HomepageScene";
 import CustomiserExperience from "./customiser/CustomiserExperience";
@@ -134,7 +133,6 @@ export default function App() {
   const [transitioning, setTransitioning]       = useState(false);
   const [activePanel, setActivePanel]           = useState<Panel | null>(null);
   const [remixSignal, setRemixSignal]           = useState<{ preset: RemixPreset; epoch: number } | null>(null);
-  const remixQueueRef    = useRef<RemixPreset[]>([]);
   const lastActionWasRemixRef = useRef(false);
   /** Increment when returning to showcase so homepage re-rolls gems (reliable vs `exiting` edge timing). */
   const [showcaseGemEpoch, setShowcaseGemEpoch] = useState(0);
@@ -192,37 +190,11 @@ export default function App() {
   }, [transitioning]);
 
   const handleRemix = useCallback(() => {
-    if (REMIX_PRESETS.length === 0) return;
-    let preset: RemixPreset;
-    if (!lastActionWasRemixRef.current) {
-      // First click after doing something else — pick randomly, then build a shuffled queue of the rest
-      const currentId = remixSignal?.preset.id;
-      const others = REMIX_PRESETS.length > 1 ? REMIX_PRESETS.filter((p) => p.id !== currentId) : REMIX_PRESETS;
-      const idx = Math.floor(Math.random() * others.length);
-      preset = others[idx];
-      // Queue = remaining presets (excluding the one just picked) in shuffled order
-      const remaining = others.filter((_, i) => i !== idx);
-      for (let i = remaining.length - 1; i > 0; i--) {
-        const j = Math.floor(Math.random() * (i + 1));
-        [remaining[i], remaining[j]] = [remaining[j], remaining[i]];
-      }
-      remixQueueRef.current = remaining;
-    } else {
-      // Consecutive remix click — pull next from queue, refill when exhausted
-      if (remixQueueRef.current.length === 0) {
-        const currentId = remixSignal?.preset.id;
-        const pool = REMIX_PRESETS.filter((p) => p.id !== currentId);
-        for (let i = pool.length - 1; i > 0; i--) {
-          const j = Math.floor(Math.random() * (i + 1));
-          [pool[i], pool[j]] = [pool[j], pool[i]];
-        }
-        remixQueueRef.current = pool;
-      }
-      preset = remixQueueRef.current.shift()!;
+    if (view === "customiser" && customiserActions?.remix) {
+      lastActionWasRemixRef.current = false;
+      customiserActions.remix();
     }
-    lastActionWasRemixRef.current = true;
-    setRemixSignal((prev) => ({ preset, epoch: (prev?.epoch ?? 0) + 1 }));
-  }, [remixSignal]);
+  }, [view, customiserActions]);
 
   const handleInfoToggle = useCallback(() => {
     setActivePanel((p) => (p === "info" ? null : "info"));
