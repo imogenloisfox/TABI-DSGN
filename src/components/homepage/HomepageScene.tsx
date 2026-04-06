@@ -688,7 +688,7 @@ export default function HomepageScene({
       </div>
 
       {/* These sit OUTSIDE the opacity wrapper so they're always visible */}
-      <div className="pointer-events-none fixed bottom-4 right-4 z-[100] flex flex-row items-end gap-0">
+      <div className="pointer-events-none fixed bottom-4 right-4 z-[100] hidden flex-row items-end gap-0 md:flex">
         <PreviewOnlinePill />
         {fpsOn ? <DevFpsPillOverlay metrics={devFpsMetrics} /> : null}
       </div>
