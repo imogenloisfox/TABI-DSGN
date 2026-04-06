@@ -247,39 +247,29 @@ export default function CustomiserExperience({
   const lastEngravingIdxRef = useRef<Record<string, number>>({});
 
   const handleEngravingRemix = useCallback(() => {
-    const variant = state.variant;
-    if (!variant) return;
-    const matching = REMIX_PRESETS.filter((p) => p.variant === variant);
-    if (matching.length === 0) return;
+    if (REMIX_PRESETS.length === 0) return;
 
-    const lastIdx = lastEngravingIdxRef.current[variant] ?? -1;
+    const lastIdx = lastEngravingIdxRef.current["__any__"] ?? -1;
     let idx: number;
-    if (matching.length === 1) {
+    if (REMIX_PRESETS.length === 1) {
       idx = 0;
     } else {
-      do { idx = Math.floor(Math.random() * matching.length); }
+      do { idx = Math.floor(Math.random() * REMIX_PRESETS.length); }
       while (idx === lastIdx);
     }
-    lastEngravingIdxRef.current[variant] = idx;
-    const p = matching[idx];
+    lastEngravingIdxRef.current["__any__"] = idx;
+    const p = REMIX_PRESETS[idx];
 
-    if (variant === "earrings") {
-      setState((prev) => ({
-        ...prev,
-        engravingLeft:    p.engravingLeft    ? { ...prev.engravingLeft,  ...p.engravingLeft  } : prev.engravingLeft,
-        engravingRight:   p.engravingRight   ? { ...prev.engravingRight, ...p.engravingRight } : prev.engravingRight,
-        gemPositionLeft:  p.gemPositionLeft  ?? prev.gemPositionLeft,
-        gemPositionRight: p.gemPositionRight ?? prev.gemPositionRight,
-      }));
-    } else if (p.engraving) {
-      setState((prev) => ({
-        ...prev,
-        engraving: { ...prev.engraving, ...p.engraving },
-        ...(variantUsesGemColour(variant) && { gemstone: pickRandomGemstoneId(prev.gemstone ?? undefined) }),
-      }));
-    }
+    const randomFinish = (): FinishType => Math.random() < 0.5 ? "shiny" : "matte";
+
+    setState((prev) => {
+      const next = buildStateFromPreset(p);
+      next.finish = randomFinish();
+      next.gemstone = pickRandomGemstoneId(prev.gemstone ?? undefined);
+      return next;
+    });
     haptic();
-  }, [state.variant, haptic]);
+  }, [haptic]);
 
   const setFinish = useCallback((finish: FinishType) => {
     haptic();
