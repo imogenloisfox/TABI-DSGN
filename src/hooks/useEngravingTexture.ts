@@ -54,18 +54,18 @@ const CANVAS_FOR_PIECE: Record<PieceSafeZoneKey, { w: number; h: number }> = {
 };
 
 const SAFE_ZONE_PX: Record<PieceSafeZoneKey, SafeZoneMargins> = {
-  ringClassic:      { top: 25,  bottom: 25,  left: 400,  right: 400  },
+  ringClassic:      { top: 16,  bottom: 16,  left: 280,  right: 280  },
   // Concave rings: horizontal keep-out removed — only top/bottom safe margins (see checkTextOutOfBounds).
-  ringConcave:      { top: 50, bottom: 50, left: 0, right: 0 },
-  ringClassicNoGem: { top: 25,  bottom: 25,  left: 400,  right: 400  },
-  ringConcaveNoGem: { top: 50, bottom: 50, left: 10, right: 10 },
+  ringConcave:      { top: 35, bottom: 35, left: 0, right: 0 },
+  ringClassicNoGem: { top: 16,  bottom: 16,  left: 280,  right: 280  },
+  ringConcaveNoGem: { top: 35, bottom: 35, left: 7, right: 7 },
   // Pixel values halved from their 2048×2048 originals to preserve the same
   // fractional safe-zone margins now that pendant canvas is 1024×1024.
-  pendantOne:       { top: 25, bottom:  30, left: 30, right: 30 },
+  pendantOne:       { top: 16, bottom: 20, left: 20, right: 20 },
   pendantTwo:       { top: 40, bottom: 40, left: 30, right: 30 },
-  pendantMesmo:     { top: 30, bottom:  30, left: 20, right: 20 },
-  earringLeft:      { top: 50, bottom: 565, left: 65,  right: 65  },
-  earringRight:     { top: 50, bottom: 565, left: 65,  right: 65  },
+  pendantMesmo:     { top: 20, bottom: 20, left: 12, right: 12 },
+  earringLeft:      { top: 35, bottom: 395, left: 45,  right: 45  },
+  earringRight:     { top: 35, bottom: 395, left: 45,  right: 45  },
 };
 
 export function getSafeZone(key: PieceSafeZoneKey): SafeZoneMargins {
