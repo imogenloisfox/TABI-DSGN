@@ -8,9 +8,9 @@ export const PRODUCT_PRICE_GBP: Record<ProductVariant, number> = {
   ringConcave:      240, // SUI
   ringClassicNoGem: 140, // MEUS
   ringConcaveNoGem: 165, // EGO (no gem)
-  pendantOne:       140, // SOI
-  pendantTwo:       185, // MOMENT
-  pendantMesmo:     185, // MESMO
+  pendantOne:       165, // SOI
+  pendantTwo:       165, // MOMENT
+  pendantMesmo:     165, // MESMO
   earrings:         185,
 };
 
