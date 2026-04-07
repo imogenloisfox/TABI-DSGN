@@ -62,7 +62,7 @@ const SAFE_ZONE_PX: Record<PieceSafeZoneKey, SafeZoneMargins> = {
   // Pixel values halved from their 2048×2048 originals to preserve the same
   // fractional safe-zone margins now that pendant canvas is 1024×1024.
   pendantOne:       { top: 25, bottom:  30, left: 30, right: 30 },
-  pendantTwo:       { top: 100, bottom: 90, left: 30, right: 30 },
+  pendantTwo:       { top: 40, bottom: 40, left: 30, right: 30 },
   pendantMesmo:     { top: 30, bottom:  30, left: 20, right: 20 },
   earringLeft:      { top: 50, bottom: 565, left: 65,  right: 65  },
   earringRight:     { top: 50, bottom: 565, left: 65,  right: 65  },
