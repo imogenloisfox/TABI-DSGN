@@ -140,13 +140,13 @@ export const ENGRAVING_SLIDER_CONFIG: Record<ProductVariant, EngravingSliderConf
     posX:    { min: -0.4, max: 0.4, default: 0.04 }, // 55% of range
     posY:    { min: -0.4, max: 0.4, default: 0.0  }, // 50%
     size:    { min: 0.2,  max: 1.2, default: 0.7  }, // 50%
-    spacing: { min: 0.3,  max: 0.7, default: 0.6  },
+    spacing: { min: 0.1,  max: 0.7, default: 0.6  },
   },
   ringConcave: {
     posX:    { min: -0.4, max: 0.4, default: 0.04 }, // 55%
     posY:    { min: -0.4, max: 0.4, default: 0.0  }, // 50%
     size:    { min: 0.2,  max: 1.2, default: 0.7  }, // 50%
-    spacing: { min: 0.3,  max: 0.7, default: 0.6  },
+    spacing: { min: 0.1,  max: 0.7, default: 0.6  },
   },
   pendantOne: {
     posX:    { min: -0.4, max: 0.4, default: 0.08 }, // 60%
@@ -164,13 +164,13 @@ export const ENGRAVING_SLIDER_CONFIG: Record<ProductVariant, EngravingSliderConf
     posX:    { min: -0.4, max: 0.4, default: 0.04 },
     posY:    { min: -0.4, max: 0.4, default: 0.0  },
     size:    { min: 0.2,  max: 1.2, default: 0.7  },
-    spacing: { min: 0.3,  max: 0.7, default: 0.6  },
+    spacing: { min: 0.1,  max: 0.7, default: 0.6  },
   },
   ringConcaveNoGem: {
     posX:    { min: -0.4, max: 0.4, default: 0.04 },
     posY:    { min: -0.4, max: 0.4, default: 0.0  },
     size:    { min: 0.2,  max: 1.2, default: 0.7  },
-    spacing: { min: 0.3,  max: 0.7, default: 0.6  },
+    spacing: { min: 0.1,  max: 0.7, default: 0.6  },
   },
   pendantMesmo: {
     posX:    { min: -0.4, max: 0.4, default: 0.08 },
