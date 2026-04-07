@@ -2,9 +2,19 @@ import type { Metadata, Viewport } from "next";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "TABI DSGN | Engraving Customiser",
+  title: "TABI DSGN TOOLS",
   description:
-    "Personalise your TABI DSGN jewellery. Choose a ring or pendant, select your engraving, gemstone, and finish.",
+    "Customise your TABI DSGN jewellery. Choose a ring, pendant or earrings, type your engraving, select your gemstone, and choose your finish.",
+  manifest: "/site.webmanifest",
+  icons: {
+    icon: [
+      { url: "/favicon.ico", sizes: "any" },
+      { url: "/favicon-16x16.png", sizes: "16x16", type: "image/png" },
+      { url: "/favicon-32x32.png", sizes: "32x32", type: "image/png" },
+      { url: "/favicon-48x48.png", sizes: "48x48", type: "image/png" },
+    ],
+    apple: [{ url: "/apple-touch-icon.png", sizes: "180x180", type: "image/png" }],
+  },
 };
 
 export const viewport: Viewport = {
@@ -22,6 +32,7 @@ export default function RootLayout({
   return (
     <html lang="en">
       <head>
+        <link rel="icon" href="/favicon.ico" sizes="any" />
         {/* Preload the default ring body so it's ready before the homepage canvas mounts.
             HDRI preload removed — 1.5 MB is too costly on mobile networks and the file
             is cached permanently (max-age=31536000, immutable) after first load anyway. */}
