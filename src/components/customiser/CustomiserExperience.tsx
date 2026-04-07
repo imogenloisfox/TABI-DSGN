@@ -478,20 +478,17 @@ export default function CustomiserExperience({
       console.error("[buy] PDF generation failed — continuing to checkout:", err);
     }
 
-    // Step 2: Upload PDF and create Shopify cart in parallel.
+    // Step 2: Upload PDF first, then create Shopify cart with the PDF URL attached.
     let specPdfUrl: string | null = null;
     try {
-      const [uploadResult, checkoutUrl] = await Promise.all([
-        pdfBlobResult
-          ? upload(`specs/spec-${Date.now()}.pdf`, pdfBlobResult, {
-              access: "public",
-              handleUploadUrl: "/api/upload-spec",
-              contentType: "application/pdf",
-            }).then((b) => b.url).catch(() => null)
-          : Promise.resolve(null),
-        createShopifyCart(state, null), // cart created without PDF URL first for speed
-      ]);
-      specPdfUrl = uploadResult;
+      if (pdfBlobResult) {
+        specPdfUrl = await upload(`specs/spec-${Date.now()}.pdf`, pdfBlobResult, {
+          access: "public",
+          handleUploadUrl: "/api/upload-spec",
+          contentType: "application/pdf",
+        }).then((b) => b.url).catch(() => null);
+      }
+      const checkoutUrl = await createShopifyCart(state, specPdfUrl);
       const url = checkoutUrl;
 
       setIsBuyingOverlay(false);
