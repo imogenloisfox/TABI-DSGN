@@ -191,6 +191,7 @@ export default function CustomiserExperience({
   // ── Reset the current piece customisation without changing product or variant ─
   const resetAll = useCallback(() => {
     haptic();
+    setCameraResetSignal((n) => n + 1);
     setState((prev) => ({
       ...prev,
       engraving:        ENGRAVING_DEFAULTS[variantEngravingGroup(prev.variant ?? "ringClassic")],
