@@ -170,7 +170,7 @@ export default function PreviewShopPills({
               onClick={handleShare}
               disabled={isSharing}
             >
-              <span>{isSharing ? "..." : shared ? "copied!" : "share"}</span>
+              <span>{isSharing ? "..." : shared ? "copied" : "share"}</span>
             </button>
             <button
               type="button"
@@ -206,7 +206,7 @@ export default function PreviewShopPills({
                 onClick={handleShare}
                 disabled={isSharing}
               >
-                <span>{isSharing ? "..." : shared ? "copied!" : "share"}</span>
+                <span>{isSharing ? "..." : shared ? "copied" : "share"}</span>
               </button>
               <button
                 type="button"
