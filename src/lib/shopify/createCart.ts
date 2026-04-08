@@ -16,6 +16,11 @@ function toPercent(value: number, min: number, max: number): string {
   return `${Math.round(((value - min) / (max - min)) * 100)}%`;
 }
 
+/** Replace spaces with _ so spaces in engraving text are visible in Shopify admin. */
+function visibleSpaces(text: string): string {
+  return text.replace(/ /g, "_");
+}
+
 function buildLineItemAttributes(state: CustomiserState): Array<{ key: string; value: string }> {
   if (!state.variant || !state.finish) return [];
 
@@ -35,10 +40,10 @@ function buildLineItemAttributes(state: CustomiserState): Array<{ key: string; v
   }
 
   if (state.variant === "earrings") {
-    if (state.engravingLeft.text) attrs.push({ key: "Left Engraving", value: state.engravingLeft.text });
-    if (state.engravingRight.text) attrs.push({ key: "Right Engraving", value: state.engravingRight.text });
+    if (state.engravingLeft.text) attrs.push({ key: "Left Engraving", value: visibleSpaces(state.engravingLeft.text) });
+    if (state.engravingRight.text) attrs.push({ key: "Right Engraving", value: visibleSpaces(state.engravingRight.text) });
   } else {
-    if (state.engraving.text) attrs.push({ key: "Engraving", value: state.engraving.text });
+    if (state.engraving.text) attrs.push({ key: "Engraving", value: visibleSpaces(state.engraving.text) });
   }
 
   // Technical attributes — prefixed with _ so Shopify hides them from customers
