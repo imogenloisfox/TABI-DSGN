@@ -73,7 +73,7 @@ function buildInitialState(initialCategory?: ProductCategory, initialVariant?: P
 export interface CustomiserActions {
   save:  () => Promise<void>;
   reset: () => void;
-  buy:   (win?: Window | null) => Promise<void>;
+  buy:   (win?: Window | null, winName?: string) => Promise<void>;
   remix: () => void;
 }
 
@@ -420,9 +420,9 @@ export default function CustomiserExperience({
 
   const [isBuyingOverlay, setIsBuyingOverlay] = useState(false);
 
-  const handleBuy = useCallback(async (preOpenedWin?: Window | null) => {
+  const handleBuy = useCallback(async (preOpenedWin?: Window | null, preOpenedWinName?: string) => {
     const isMobile = window.innerWidth < 768 || /Mobi|Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
-    const winName = `tabi_checkout_${Date.now()}`;
+    let winName = preOpenedWinName ?? `tabi_checkout_${Date.now()}`;
 
     // Desktop: open a branded loading tab immediately (must be in the sync gesture
     // handler — popup blockers kill window.open() called after an await).

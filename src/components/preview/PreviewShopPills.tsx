@@ -32,7 +32,7 @@ export default function PreviewShopPills({
   shareUrl,
 }: {
   variant: ProductVariant | null;
-  onBuy?: (win?: Window | null) => Promise<void>;
+  onBuy?: (win?: Window | null, winName?: string) => Promise<void>;
   onSave?: () => Promise<void>;
   shareUrl?: string;
 }) {
@@ -85,10 +85,11 @@ export default function PreviewShopPills({
     // popup blockers treat it as a user gesture. Pass it into onBuy so it
     // doesn't try to open a second window after the async work completes.
     const isMobile = window.innerWidth < 768 || /Mobi|Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
+    const winName = `tabi_checkout_${Date.now()}`;
     let win: Window | null = null;
     if (!isMobile) {
       const origin = window.location.origin;
-      win = window.open("about:blank", `tabi_checkout_${Date.now()}`);
+      win = window.open("about:blank", winName);
       if (win) {
         win.document.write(`<!DOCTYPE html><html><head><title>tabi dsgn</title>
           <style>
@@ -103,7 +104,7 @@ export default function PreviewShopPills({
         win.document.close();
       }
     }
-    onBuy(win).finally(() => { setIsBuying(false); setPopupOpen(false); });
+    onBuy(win, winName).finally(() => { setIsBuying(false); setPopupOpen(false); });
   }
 
   const buyPill = onBuy ? (

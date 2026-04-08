@@ -406,7 +406,7 @@ interface SceneCanvasProps {
   previewLayoutEpoch?: number;
   /** Dev FPS samples — parent owns DOM overlay; collector stays inside Canvas. */
   devFpsSampleRef:    RefObject<(sample: DevFpsSample) => void>;
-  onBuy?: (win?: Window | null) => Promise<void>;
+  onBuy?: (win?: Window | null, winName?: string) => Promise<void>;
   onSave?: () => Promise<void>;
   shareUrl?: string;
   onSceneReady?: () => void;

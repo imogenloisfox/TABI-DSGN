@@ -36,7 +36,7 @@ interface PreviewStageProps {
   cameraResetSignal?: number;
   /** Incremented after sidebar chrome changes; used to resync WebGL once CSS width transition finishes. */
   previewLayoutEpoch?: number;
-  onBuy?: (win?: Window | null) => Promise<void>;
+  onBuy?: (win?: Window | null, winName?: string) => Promise<void>;
   onSave?: () => Promise<void>;
   shareUrl?: string;
   onSceneReady?: () => void;
