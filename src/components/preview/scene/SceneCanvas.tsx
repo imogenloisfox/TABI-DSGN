@@ -5,10 +5,12 @@ import {
   useCallback,
   useEffect,
   useRef,
+  useState,
   type RefObject,
 } from "react";
 import * as THREE from "three";
 import { Canvas, useThree, useFrame } from "@react-three/fiber";
+import { useProgress } from "@react-three/drei";
 import { OrbitControls } from "@react-three/drei";
 import type { ProductVariant, FinishType, GemstoneId, GemPosition } from "@/lib/customiser/types";
 import {
@@ -42,6 +44,25 @@ function DevDiagnostics() {
     }
   });
 
+  return null;
+}
+
+// ─── Scene load progress watcher ─────────────────────────────────────────────
+
+function SceneLoadWatcher({ onLoaded }: { onLoaded: () => void }) {
+  const { active } = useProgress();
+  const firedRef   = useRef(false);
+  const wasActiveRef = useRef(false);
+  useEffect(() => {
+    if (active) {
+      wasActiveRef.current = true;
+    } else if (wasActiveRef.current && !firedRef.current) {
+      firedRef.current = true;
+      // Defer to avoid setState-during-render warning when the progress store
+      // flushes synchronously while another component is still rendering.
+      setTimeout(onLoaded, 0);
+    }
+  }, [active, onLoaded]);
   return null;
 }
 
@@ -385,7 +406,10 @@ interface SceneCanvasProps {
   previewLayoutEpoch?: number;
   /** Dev FPS samples — parent owns DOM overlay; collector stays inside Canvas. */
   devFpsSampleRef:    RefObject<(sample: DevFpsSample) => void>;
-  onBuy?: () => Promise<void>;
+  onBuy?: (win?: Window | null) => Promise<void>;
+  onSave?: () => Promise<void>;
+  shareUrl?: string;
+  onSceneReady?: () => void;
 }
 
 export default function SceneCanvas({
@@ -404,11 +428,16 @@ export default function SceneCanvas({
   previewLayoutEpoch = 0,
   devFpsSampleRef,
   onBuy,
+  onSave,
+  shareUrl,
+  onSceneReady,
 }: SceneCanvasProps) {
-  const orbitRef = useRef<OrbitControlsHandle>(null);
-  const isDev    = process.env.NODE_ENV === "development";
-  const fpsOn    = showFpsOverlay();
-  const isMobile = typeof window !== "undefined" && window.innerWidth < 768;
+  const orbitRef   = useRef<OrbitControlsHandle>(null);
+  const isDev      = process.env.NODE_ENV === "development";
+  const fpsOn      = showFpsOverlay();
+  const isMobile   = typeof window !== "undefined" && window.innerWidth < 768;
+  const [sceneReady, setSceneReady] = useState(false);
+  const handleLoaded = useCallback(() => { setSceneReady(true); onSceneReady?.(); }, [onSceneReady]);
 
   return (
     <>
@@ -439,6 +468,7 @@ export default function SceneCanvas({
       }}
     >
       <SceneClearColor />
+      <SceneLoadWatcher onLoaded={handleLoaded} />
       <CaptureHelper orbitRef={orbitRef} onCaptureReady={onCaptureReady} />
       <PreviewLayoutResync layoutEpoch={previewLayoutEpoch} orbitRef={orbitRef} />
       <CameraController variant={variant} orbitRef={orbitRef} cameraResetSignal={cameraResetSignal} />
@@ -471,9 +501,12 @@ export default function SceneCanvas({
       {fpsOn && <DevFpsMetricsCollector onSampleRef={devFpsSampleRef} />}
       {isDev && <DevDiagnostics />}
     </Canvas>
-    {/* Desktop only — bottom left, price + buy (viewport-fixed; sidebar is separate) */}
-    <div className="hidden md:flex fixed bottom-4 left-4 z-[100] flex-row items-center gap-0">
-      <PreviewShopPills variant={variant} onBuy={onBuy} />
+    {/* Desktop only — bottom left, price + buy; hidden until scene has loaded */}
+    <div
+      className="hidden md:flex fixed bottom-4 left-4 z-[100] flex-row items-center gap-0"
+      style={{ opacity: sceneReady ? 1 : 0, transition: "opacity 0.3s ease" }}
+    >
+      <PreviewShopPills variant={variant} onBuy={onBuy} onSave={onSave} shareUrl={shareUrl} />
     </div>
     </>
   );

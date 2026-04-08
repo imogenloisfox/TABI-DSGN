@@ -9,7 +9,8 @@ import {
   type ReactNode,
 } from "react";
 import type { CustomiserActions } from "./customiser/CustomiserExperience";
-import type { ProductCategory, ProductVariant } from "@/lib/customiser/types";
+import type { CustomiserState, ProductCategory, ProductVariant } from "@/lib/customiser/types";
+import { decodeShareState } from "@/lib/shareLink";
 import type { RemixPreset } from "@/lib/remixPresets";
 import HomepageScene from "./homepage/HomepageScene";
 import CustomiserExperience from "./customiser/CustomiserExperience";
@@ -130,6 +131,7 @@ export default function App() {
   const [view, setView]                         = useState<"showcase" | "customiser">("showcase");
   const [selectedCategory, setSelectedCategory] = useState<ProductCategory | null>(null);
   const [selectedVariant, setSelectedVariant]   = useState<ProductVariant | null>(null);
+  const [restoredShareState, setRestoredShareState] = useState<Partial<CustomiserState> | null>(null);
   const [transitioning, setTransitioning]       = useState(false);
   const [activePanel, setActivePanel]           = useState<Panel | null>(null);
   const [remixSignal, setRemixSignal]           = useState<{ preset: RemixPreset; epoch: number } | null>(null);
@@ -139,8 +141,25 @@ export default function App() {
   const [customiserActions, setCustomiserActions] = useState<CustomiserActions | null>(null);
   const [isSaving, setIsSaving] = useState(false);
   const [liveVariant, setLiveVariant] = useState<ProductVariant | null>(null);
+  const [liveShareUrl, setLiveShareUrl] = useState<string>("");
+  const [sceneReady, setSceneReady] = useState(false);
   const leftGroupRef = useRef<HTMLDivElement>(null);
   const [leftChromeStackPx, setLeftChromeStackPx] = useState(LEFT_CHROME_PILL_ROW_PX);
+
+  // Decode ?d= share param after mount (client-only) to avoid SSR hydration mismatch
+  useEffect(() => {
+    const d = new URLSearchParams(window.location.search).get("d");
+    if (!d) return;
+    const decoded = decodeShareState(d);
+    history.replaceState({}, "", "/");
+    if (!decoded?.variant || !decoded?.category) return;
+    setRestoredShareState(decoded);
+    setSelectedCategory(decoded.category);
+    setSelectedVariant(decoded.variant);
+    setLiveVariant(decoded.variant);
+    setView("customiser");
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   // Remove the static HTML loader once React has mounted
   useEffect(() => {
@@ -182,6 +201,7 @@ export default function App() {
       setSelectedCategory(category);
       setSelectedVariant(variant);
       setLiveVariant(variant);
+      setSceneReady(false);
       setView("customiser");
       setTransitioning(false);
     }, 550);
@@ -285,8 +305,16 @@ export default function App() {
 
         {/* Mobile price/buy — inside the flex column so the panel pushes them down naturally */}
         {view === "customiser" && (
-          <div className="shrink-0 md:hidden">
-            <PreviewShopPills variant={liveVariant} onBuy={customiserActions?.buy} />
+          <div
+            className="shrink-0 md:hidden"
+            style={{ opacity: sceneReady ? 1 : 0, transition: "opacity 0.3s ease" }}
+          >
+            <PreviewShopPills
+              variant={liveVariant}
+              onBuy={customiserActions?.buy}
+              onSave={customiserActions?.save}
+              shareUrl={liveShareUrl}
+            />
           </div>
         )}
       </div>
@@ -302,6 +330,7 @@ export default function App() {
         <CustomiserExperience
           initialCategory={selectedCategory}
           initialVariant={selectedVariant ?? undefined}
+          initialSharedState={restoredShareState ?? undefined}
           onBack={handleBack}
           exiting={transitioning}
           leftChromeStackPx={leftChromeStackPx}
@@ -310,6 +339,8 @@ export default function App() {
           onRegisterActions={setCustomiserActions}
           onSavingChange={setIsSaving}
           onVariantChange={setLiveVariant}
+          onShareUrlChange={setLiveShareUrl}
+          onSceneReady={() => setSceneReady(true)}
         />
       )}
     </div>

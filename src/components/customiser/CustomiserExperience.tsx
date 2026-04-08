@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useCallback, useEffect, useRef } from "react";
+import React, { useState, useCallback, useEffect, useRef, useMemo } from "react";
 import type {
   CustomiserState,
   ProductCategory,
@@ -23,6 +23,7 @@ import {
   variantUsesGemColour,
 } from "@/lib/customiser/types";
 import { createShopifyCart, addToCartFormPost } from "@/lib/shopify/createCart";
+import { encodeShareState } from "@/lib/shareLink";
 import { upload } from "@vercel/blob/client";
 import { getShopifyProductUrl } from "@/lib/shopifyProductUrl";
 import { buildStateFromPreset, captureCurrentAsPreset, REMIX_PRESETS } from "@/lib/remixPresets";
@@ -70,15 +71,17 @@ function buildInitialState(initialCategory?: ProductCategory, initialVariant?: P
 }
 
 export interface CustomiserActions {
-  save:  () => void;
+  save:  () => Promise<void>;
   reset: () => void;
-  buy:   () => Promise<void>;
+  buy:   (win?: Window | null) => Promise<void>;
   remix: () => void;
 }
 
 interface CustomiserExperienceProps {
   initialCategory?: ProductCategory;
   initialVariant?:  ProductVariant;
+  /** Decoded share-link state — merged on top of the base initial state. */
+  initialSharedState?: Partial<CustomiserState>;
   onBack?:          () => void;
   exiting?:         boolean;
   /** Measured height of fixed left stack (info/play + pills) — clears sidebar under chrome. */
@@ -93,11 +96,16 @@ interface CustomiserExperienceProps {
   onSavingChange?: (saving: boolean) => void;
   /** Fires whenever the active variant changes (toolbar, remix) — lets App keep mobile pills in sync. */
   onVariantChange?: (variant: ProductVariant | null) => void;
+  /** Fires whenever the shareable URL changes — lets App keep mobile pills in sync. */
+  onShareUrlChange?: (url: string) => void;
+  /** Fires once when the 3D scene has finished loading. */
+  onSceneReady?: () => void;
 }
 
 export default function CustomiserExperience({
   initialCategory,
   initialVariant,
+  initialSharedState,
   onBack,
   exiting = false,
   leftChromeStackPx = 30,
@@ -106,15 +114,26 @@ export default function CustomiserExperience({
   onRegisterActions,
   onSavingChange,
   onVariantChange,
+  onShareUrlChange,
+  onSceneReady,
 }: CustomiserExperienceProps) {
-  const [state, setState] = useState<CustomiserState>(() => buildInitialState(initialCategory, initialVariant));
+  const [state, setState] = useState<CustomiserState>(() => {
+    const base = buildInitialState(initialCategory, initialVariant);
+    if (!initialSharedState) return base;
+    return { ...base, ...initialSharedState, view: "workspace" };
+  });
   const [isGenerating, setIsGenerating] = useState(false);
+
+  const shareUrl = useMemo(() => encodeShareState(state), [state]);
 
   // Notify parent (App → SiteHeader) when save state changes
   useEffect(() => { onSavingChange?.(isGenerating); }, [isGenerating, onSavingChange]);
 
   // Notify parent whenever variant changes (toolbar, remix) so mobile pills stay in sync
   useEffect(() => { onVariantChange?.(state.variant); }, [state.variant, onVariantChange]);
+
+  // Notify parent whenever shareUrl changes so mobile pills always have the latest link
+  useEffect(() => { onShareUrlChange?.(shareUrl); }, [shareUrl, onShareUrlChange]);
 
   const [cameraResetSignal, setCameraResetSignal] = useState(0);
 
@@ -401,14 +420,15 @@ export default function CustomiserExperience({
 
   const [isBuyingOverlay, setIsBuyingOverlay] = useState(false);
 
-  const handleBuy = useCallback(async () => {
+  const handleBuy = useCallback(async (preOpenedWin?: Window | null) => {
     const isMobile = window.innerWidth < 768 || /Mobi|Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
     const winName = `tabi_checkout_${Date.now()}`;
 
     // Desktop: open a branded loading tab immediately (must be in the sync gesture
     // handler — popup blockers kill window.open() called after an await).
-    let win: Window | null = null;
-    if (!isMobile) {
+    // If caller already opened the window (to preserve gesture context), reuse it.
+    let win: Window | null = preOpenedWin ?? null;
+    if (!isMobile && !win) {
       win = window.open("about:blank", winName);
       if (win) {
         const origin = window.location.origin;
@@ -608,7 +628,7 @@ export default function CustomiserExperience({
               className="hidden md:flex shrink-0 flex-col overflow-hidden bg-[#e9e9e9] h-full w-[275px]"
               style={{ paddingTop: `calc(1rem + ${leftChromeStackPx}px + 30px)` }}
             >
-              <div className="min-h-0 flex-1 overflow-y-auto px-4">
+              <div className="hide-scrollbar min-h-0 flex-1 overflow-y-auto px-4 pb-[80px]">
                 <div className={SIDEBAR_CONTROL_COLUMN}>
                   <ProductSelector
                     selectedCategory={state.category}
@@ -839,6 +859,9 @@ export default function CustomiserExperience({
                 finish={state.finish}
                 gemstone={state.gemstone}
                 onBuy={handleBuy}
+                onSave={handleExportSpec}
+                shareUrl={shareUrl}
+                onSceneReady={onSceneReady}
                 bumpMap={isEarrings ? (earringLeftTextures?.bumpMap ?? null) : (engravingTextures?.bumpMap ?? null)}
                 colorTintMap={isEarrings ? (earringLeftTextures?.colorTintMap ?? null) : (engravingTextures?.colorTintMap ?? null)}
                 bumpMapRight={earringRightTextures?.bumpMap ?? null}

@@ -36,7 +36,10 @@ interface PreviewStageProps {
   cameraResetSignal?: number;
   /** Incremented after sidebar chrome changes; used to resync WebGL once CSS width transition finishes. */
   previewLayoutEpoch?: number;
-  onBuy?: () => Promise<void>;
+  onBuy?: (win?: Window | null) => Promise<void>;
+  onSave?: () => Promise<void>;
+  shareUrl?: string;
+  onSceneReady?: () => void;
 }
 
 export default function PreviewStage({
@@ -54,6 +57,9 @@ export default function PreviewStage({
   cameraResetSignal,
   previewLayoutEpoch = 0,
   onBuy,
+  onSave,
+  shareUrl,
+  onSceneReady,
 }: PreviewStageProps) {
   const fpsOn = showFpsOverlay();
   const [devFpsMetrics, setDevFpsMetrics] = useState<DevFpsSample>({
@@ -84,6 +90,9 @@ export default function PreviewStage({
           previewLayoutEpoch={previewLayoutEpoch}
           devFpsSampleRef={devFpsSampleRef}
           onBuy={onBuy}
+          onSave={onSave}
+          shareUrl={shareUrl}
+          onSceneReady={onSceneReady}
         />
 
         {!variant && (
