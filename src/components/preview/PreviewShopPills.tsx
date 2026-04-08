@@ -108,7 +108,7 @@ export default function PreviewShopPills({
   }
 
   const buyPill = onBuy ? (
-    <div ref={wrapperRef} className="relative">
+    <div className="relative">
       <button
         type="button"
         className={`${CHROME_TOP_PILL_BASE} buy-pill-link w-[120px] shrink-0 overflow-hidden tabular-nums lowercase select-none`}
