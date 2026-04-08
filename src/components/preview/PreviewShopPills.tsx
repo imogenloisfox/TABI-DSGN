@@ -73,13 +73,13 @@ export default function PreviewShopPills({
   }, [popupOpen]);
 
   async function handleShare() {
-    if (isSharing || !shareUrl) return;
+    if (isSharing) return;
+    if (!shareUrl) { console.warn("[share] shareUrl is empty"); return; }
     setIsSharing(true);
     try { await navigator.clipboard.writeText(shareUrl); } catch { /* unavailable */ }
-    window.open(shareUrl, "_blank", "noopener,noreferrer");
     setShared(true);
-    setTimeout(() => setShared(false), 2000);
     setIsSharing(false);
+    setTimeout(() => setShared(false), 2000);
   }
 
   function handleCheckout() {
