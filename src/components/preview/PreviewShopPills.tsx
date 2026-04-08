@@ -53,6 +53,9 @@ export default function PreviewShopPills({
 
   useEffect(() => {
     if (!popupOpen) return;
+    // Only close on outside click for desktop — on mobile this races with button
+    // taps and closes the popup before the click fires.
+    if (typeof window !== "undefined" && window.innerWidth < 768) return;
     const onPointer = (e: PointerEvent) => {
       if (wrapperRef.current && !wrapperRef.current.contains(e.target as Node)) {
         setPopupOpen(false);
