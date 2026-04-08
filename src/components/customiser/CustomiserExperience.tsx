@@ -407,6 +407,7 @@ export default function CustomiserExperience({
         bumpCanvas,
         bumpCanvasRight,
         canvasTarget: canvasLabel,
+        shareUrl,
       });
     } catch (err) {
       console.error("PDF save failed:", err);
@@ -491,6 +492,7 @@ export default function CustomiserExperience({
         bumpCanvas,
         bumpCanvasRight,
         canvasTarget: `${engTarget} (${w}×${h})`,
+        shareUrl,
         returnBlob: true,
       });
       if (pdfBlob instanceof Blob) pdfBlobResult = pdfBlob;

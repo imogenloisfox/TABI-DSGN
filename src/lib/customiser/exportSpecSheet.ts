@@ -677,6 +677,8 @@ export interface ExportSpecSheetParams {
   bumpCanvas:        HTMLCanvasElement | null;
   bumpCanvasRight?:  HTMLCanvasElement | null;
   canvasTarget:      string;
+  /** Shareable design link to include in the PDF. */
+  shareUrl?:         string;
   /** When true, returns the PDF as a Blob instead of triggering a browser download. */
   returnBlob?:       boolean;
 }
@@ -722,6 +724,7 @@ export async function exportSpecSheet(params: ExportSpecSheetParams): Promise<Bl
     bumpCanvas,
     bumpCanvasRight,
     canvasTarget,
+    shareUrl,
   } = params;
 
   const isRing    = variant === "ringClassic" || variant === "ringConcave"
@@ -1056,6 +1059,13 @@ export async function exportSpecSheet(params: ExportSpecSheetParams): Promise<Bl
   } else if (variant === "pendantTwo") {
     sLabel("Scale Note");
     sValue("MOMENT — dimensions TBC.");
+  }
+
+  // ── Share link ────────────────────────────────────────────────────────────
+  if (shareUrl) {
+    sDivider();
+    sLabel("Design Link");
+    sValue(shareUrl);
   }
 
   // ── Footer ────────────────────────────────────────────────────────────────
