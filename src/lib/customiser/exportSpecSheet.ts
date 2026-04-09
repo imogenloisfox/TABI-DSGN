@@ -863,13 +863,20 @@ export async function exportSpecSheet(params: ExportSpecSheetParams): Promise<Bl
       const ix = PAD + i * (imgW3 + 2);
       const dims = await imageDimensions(url);
       const iAspect = dims.w / dims.h;
-      const iH = Math.min(rowH, imgW3 / iAspect);
+      // Fit image within imgW3 × rowH box preserving aspect ratio
+      let iW = imgW3;
+      let iH = iW / iAspect;
+      if (iH > rowH) {
+        iH = rowH;
+        iW = iH * iAspect;
+      }
       const iy = captureY + (rowH - iH) / 2;
-      doc.addImage(url, "PNG", ix, iy, imgW3, iH);
+      const ixi = ix + (imgW3 - iW) / 2; // centre horizontally in column
+      doc.addImage(url, "PNG", ixi, iy, iW, iH);
       // Thin border
       doc.setDrawColor(217, 217, 218);
       doc.setLineWidth(0.1);
-      doc.rect(ix, iy, imgW3, iH);
+      doc.rect(ixi, iy, iW, iH);
       captureLabel(label, ix + imgW3 / 2, captureY + rowH + 3.5);
     }
     captureY += rowH + 6;
