@@ -589,6 +589,14 @@ export default function App() {
     setShareOpen((o) => !o);
   }, [liveShareUrl]);
 
+  /** Mobile share — copy link directly, flash "copied", no popup */
+  const handleMobileShareCopy = useCallback(async () => {
+    if (!liveShareUrl) return;
+    try { await navigator.clipboard.writeText(liveShareUrl); } catch { /* unavailable */ }
+    setShareCopied(true);
+    setTimeout(() => setShareCopied(false), 1500);
+  }, [liveShareUrl]);
+
   const handleShareCopied = useCallback(() => {
     setShareCopied(true);
     setTimeout(() => { setShareCopied(false); setShareOpen(false); }, 1500);
@@ -655,26 +663,20 @@ export default function App() {
             onSave={customiserActions?.save ? () => { lastActionWasRemixRef.current = false; customiserActions.save(); } : undefined}
             isSaving={isSaving}
             onReset={customiserActions?.reset ? () => { lastActionWasRemixRef.current = false; customiserActions.reset(); } : undefined}
-            onShare={view === "customiser" ? handleShareClick : undefined}
+            onShare={view === "customiser" ? handleMobileShareCopy : undefined}
             shareLabel={shareCopied ? "copied" : "share"}
             shareDisabled={!liveShareUrl}
             shareButtonRef={mobileShareBtnRef}
           />
         </div>
 
-        {/* Mobile: share dropdown, price+buy+cart row, cart dropdown — all stacked, no gap */}
+        {/* Mobile: price+buy+cart row, cart dropdown right-aligned — all stacked, no gap */}
         {view === "customiser" && (
           <div
             ref={cartRefMobile}
             className="shrink-0 md:hidden flex flex-col items-start gap-0 w-[400px]"
             style={{ opacity: sceneReady ? 1 : 0, transition: "opacity 0.3s ease" }}
           >
-            {/* Share link box — right-aligned under share button */}
-            {shareOpen && liveShareUrl && (
-              <div ref={shareRefMobile} className="self-end">
-                <ShareLinkBox url={liveShareUrl} onCopied={handleShareCopied} compact />
-              </div>
-            )}
             {/* Price + buy + cart — single row */}
             <div className="flex flex-row gap-0">
               <div
@@ -703,18 +705,18 @@ export default function App() {
               </button>
               <button
                 type="button"
-                className={`${CHROME_TOP_PILL_BASE} buy-pill-link w-[160px] shrink-0 justify-center lowercase select-none`}
-                style={{ ...CHROME_HEADER_FONT }}
+                className={`${CHROME_TOP_PILL_BASE} mobile-btn-hover mobile-btn-hover-dark w-[160px] shrink-0 justify-center lowercase !text-[#2a2c2d] select-none`}
+                style={{ ...CHROME_HEADER_FONT, backgroundColor: "#676767" }}
                 onClick={handleCartClick}
               >
-                <span className="buy-pill-label">
-                  {cartEmptyFlash ? "empty" : bag.length > 0 ? `cart ${bag.length}` : "cart"}
-                </span>
+                {cartEmptyFlash ? "empty" : bag.length > 0 ? `cart ${bag.length}` : "cart"}
               </button>
             </div>
-            {/* Cart dropdown — pops under the row */}
+            {/* Cart dropdown — right-aligned under cart button, 160px */}
             {cartOpen && bag.length > 0 && (
-              <CartDropdown bag={bag} onCheckout={handleCheckoutAll} isCheckingOut={isCheckingOut} onViewItem={handleViewBagItem} compact />
+              <div className="self-end">
+                <CartDropdown bag={bag} onCheckout={handleCheckoutAll} isCheckingOut={isCheckingOut} onViewItem={handleViewBagItem} compact />
+              </div>
             )}
           </div>
         )}
