@@ -83,84 +83,110 @@ export default function SiteHeader({
       {/* Pill row — scrolls horizontally on mobile if all pills don't fit */}
       <div className="flex items-center gap-0 self-start overflow-x-auto whitespace-nowrap">
         {/* Info — hidden on mobile when in customiser */}
-        <VanishButton
-          onClick={onInfoToggle}
-          aria-expanded={infoOpen}
-          aria-controls="site-info-columns"
-          className={`${isCustomiser ? "hidden md:flex" : "flex"} ${CHROME_TOP_PILL_BASE} relative z-10 w-[80px] shrink-0 overflow-visible normal-case lowercase !bg-[#d9d9d9] text-[#2a2c2d] mobile-btn-hover mobile-btn-hover-d9 ${HEADER_CHROME_HOVER_INVERT}`}
-          style={{ ...CHROME_HEADER_FONT }}
-        >
-          info
-        </VanishButton>
+        {isCustomiser ? (
+          <div className="hidden md:block">
+            <VanishButton
+              onClick={onInfoToggle}
+              aria-expanded={infoOpen}
+              aria-controls="site-info-columns"
+              className={`${CHROME_TOP_PILL_BASE} relative z-10 w-[80px] shrink-0 overflow-visible normal-case lowercase !bg-[#d9d9d9] text-[#2a2c2d] mobile-btn-hover mobile-btn-hover-d9 ${HEADER_CHROME_HOVER_INVERT}`}
+              style={{ ...CHROME_HEADER_FONT }}
+            >
+              info
+            </VanishButton>
+          </div>
+        ) : (
+          <VanishButton
+            onClick={onInfoToggle}
+            aria-expanded={infoOpen}
+            aria-controls="site-info-columns"
+            className={`${CHROME_TOP_PILL_BASE} relative z-10 w-[80px] shrink-0 overflow-visible normal-case lowercase !bg-[#d9d9d9] text-[#2a2c2d] mobile-btn-hover mobile-btn-hover-d9 ${HEADER_CHROME_HOVER_INVERT}`}
+            style={{ ...CHROME_HEADER_FONT }}
+          >
+            info
+          </VanishButton>
+        )}
 
         {/* Mobile customiser order: remix → reset → save → share */}
         {showRemixButton && onRemix ? (
-          <button
-            onClick={onRemix}
-            className={`flex md:hidden ${CHROME_TOP_PILL_BASE} relative z-10 w-[80px] shrink-0 justify-center overflow-visible normal-case lowercase !bg-[#d9d9d9] !text-[#2a2c2d] mobile-btn-hover mobile-btn-hover-d9`}
-            style={{ ...CHROME_HEADER_FONT }}
-          >
-            remix
-          </button>
+          <div className="md:hidden">
+            <button
+              onClick={onRemix}
+              className={`${CHROME_TOP_PILL_BASE} relative z-10 w-[80px] shrink-0 justify-center overflow-visible normal-case lowercase !bg-[#d9d9d9] !text-[#2a2c2d] mobile-btn-hover mobile-btn-hover-d9`}
+              style={{ ...CHROME_HEADER_FONT }}
+            >
+              remix
+            </button>
+          </div>
         ) : null}
 
         {onReset ? (
-          <VanishButton
-            onClick={onReset}
-            className={`flex md:hidden ${CHROME_TOP_PILL_BASE} relative z-10 w-[80px] shrink-0 justify-center overflow-visible normal-case lowercase !bg-[#b1b1b1] !text-[#2a2c2d] mobile-btn-hover mobile-btn-hover-b1 ${HEADER_CHROME_HOVER_INVERT}`}
-            style={{ ...CHROME_HEADER_FONT }}
-          >
-            reset
-          </VanishButton>
+          <div className="md:hidden">
+            <VanishButton
+              onClick={onReset}
+              className={`${CHROME_TOP_PILL_BASE} relative z-10 w-[80px] shrink-0 justify-center overflow-visible normal-case lowercase !bg-[#b1b1b1] !text-[#2a2c2d] mobile-btn-hover mobile-btn-hover-b1 ${HEADER_CHROME_HOVER_INVERT}`}
+              style={{ ...CHROME_HEADER_FONT }}
+            >
+              reset
+            </VanishButton>
+          </div>
         ) : null}
 
         {onSave ? (
           <>
             {/* Desktop save — #b1b1b1 */}
-            <VanishButton
-              onClick={onSave}
-              disabled={isSaving}
-              className={`hidden md:flex ${CHROME_TOP_PILL_BASE} relative z-10 w-[80px] shrink-0 justify-center overflow-visible normal-case lowercase !bg-[#b1b1b1] !text-[#2a2c2d] disabled:cursor-wait disabled:opacity-50 mobile-btn-hover mobile-btn-hover-b1 ${HEADER_CHROME_HOVER_INVERT}`}
-              style={{ ...CHROME_HEADER_FONT }}
-            >
-              {isSaving ? "saving…" : "save"}
-            </VanishButton>
+            <div className="hidden md:block">
+              <VanishButton
+                onClick={onSave}
+                disabled={isSaving}
+                className={`${CHROME_TOP_PILL_BASE} relative z-10 w-[80px] shrink-0 justify-center overflow-visible normal-case lowercase !bg-[#b1b1b1] !text-[#2a2c2d] disabled:cursor-wait disabled:opacity-50 mobile-btn-hover mobile-btn-hover-b1 ${HEADER_CHROME_HOVER_INVERT}`}
+                style={{ ...CHROME_HEADER_FONT }}
+              >
+                {isSaving ? "saving…" : "save"}
+              </VanishButton>
+            </div>
             {/* Mobile save — #8d8d8d in customiser, #b1b1b1 otherwise */}
-            <VanishButton
-              onClick={onSave}
-              disabled={isSaving}
-              className={`flex md:hidden ${CHROME_TOP_PILL_BASE} relative z-10 w-[80px] shrink-0 justify-center overflow-visible normal-case lowercase !text-[#2a2c2d] disabled:cursor-wait disabled:opacity-50 mobile-btn-hover ${HEADER_CHROME_HOVER_INVERT}`}
-              style={{ ...CHROME_HEADER_FONT, backgroundColor: isCustomiser ? "#8d8d8d" : "#b1b1b1" }}
-            >
-              {isSaving ? "saving…" : "save"}
-            </VanishButton>
+            <div className="md:hidden">
+              <VanishButton
+                onClick={onSave}
+                disabled={isSaving}
+                className={`${CHROME_TOP_PILL_BASE} relative z-10 w-[80px] shrink-0 justify-center overflow-visible normal-case lowercase !text-[#2a2c2d] disabled:cursor-wait disabled:opacity-50 mobile-btn-hover ${HEADER_CHROME_HOVER_INVERT}`}
+                style={{ ...CHROME_HEADER_FONT, backgroundColor: isCustomiser ? "#8d8d8d" : "#b1b1b1" }}
+              >
+                {isSaving ? "saving…" : "save"}
+              </VanishButton>
+            </div>
           </>
         ) : null}
 
         {/* Mobile customiser: share in header row */}
         {onShare ? (
-          <button
-            ref={shareButtonRef}
-            type="button"
-            onClick={onShare}
-            disabled={shareDisabled}
-            className={`flex md:hidden ${CHROME_TOP_PILL_BASE} relative z-10 w-[80px] shrink-0 justify-center overflow-visible normal-case lowercase !text-[#2a2c2d] mobile-btn-hover mobile-btn-hover-dark`}
-            style={{ ...CHROME_HEADER_FONT, backgroundColor: "#676767" }}
-          >
-            {shareLabel}
-          </button>
+          <div className="md:hidden">
+            <button
+              ref={shareButtonRef}
+              type="button"
+              onClick={onShare}
+              disabled={shareDisabled}
+              className={`${CHROME_TOP_PILL_BASE} relative z-10 w-[80px] shrink-0 justify-center overflow-visible normal-case lowercase !text-[#2a2c2d] mobile-btn-hover mobile-btn-hover-dark`}
+              style={{ ...CHROME_HEADER_FONT, backgroundColor: "#676767" }}
+            >
+              {shareLabel}
+            </button>
+          </div>
         ) : null}
 
         {showPlayButton && onPlayToggle ? (
-          <VanishButton
-            onClick={onPlayToggle}
-            aria-expanded={playOpen}
-            aria-controls="site-play-hint"
-            className={`hidden md:flex ${CHROME_TOP_PILL_BASE} relative z-10 w-[80px] shrink-0 overflow-visible normal-case lowercase !bg-[#b1b1b1] text-[#2a2c2d] mobile-btn-hover mobile-btn-hover-b1 ${HEADER_CHROME_HOVER_INVERT}`}
-            style={{ ...CHROME_HEADER_FONT }}
-          >
-            play
-          </VanishButton>
+          <div className="hidden md:block">
+            <VanishButton
+              onClick={onPlayToggle}
+              aria-expanded={playOpen}
+              aria-controls="site-play-hint"
+              className={`${CHROME_TOP_PILL_BASE} relative z-10 w-[80px] shrink-0 overflow-visible normal-case lowercase !bg-[#b1b1b1] text-[#2a2c2d] mobile-btn-hover mobile-btn-hover-b1 ${HEADER_CHROME_HOVER_INVERT}`}
+              style={{ ...CHROME_HEADER_FONT }}
+            >
+              play
+            </VanishButton>
+          </div>
         ) : null}
       </div>
     </div>

@@ -662,35 +662,20 @@ export default function App() {
           />
         </div>
 
-        {/* Mobile: share dropdown + cart + cart dropdown + price/buy — all stacked, no gap */}
+        {/* Mobile: share dropdown, price+buy+cart row, cart dropdown — all stacked, no gap */}
         {view === "customiser" && (
           <div
             ref={cartRefMobile}
             className="shrink-0 md:hidden flex flex-col items-start gap-0 w-[400px]"
             style={{ opacity: sceneReady ? 1 : 0, transition: "opacity 0.3s ease" }}
           >
-            {/* Share link box — right-aligned under share button, pushes cart down */}
+            {/* Share link box — right-aligned under share button */}
             {shareOpen && liveShareUrl && (
               <div ref={shareRefMobile} className="self-end">
                 <ShareLinkBox url={liveShareUrl} onCopied={handleShareCopied} compact />
               </div>
             )}
-            {/* Cart button — 160x30 */}
-            <button
-              type="button"
-              className={`${CHROME_TOP_PILL_BASE} buy-pill-link w-[160px] shrink-0 justify-center lowercase select-none`}
-              style={{ ...CHROME_HEADER_FONT }}
-              onClick={handleCartClick}
-            >
-              <span className="buy-pill-label">
-                {cartEmptyFlash ? "empty" : bag.length > 0 ? `cart ${bag.length}` : "cart"}
-              </span>
-            </button>
-            {/* Cart dropdown — 160px wide, pops under cart */}
-            {cartOpen && bag.length > 0 && (
-              <CartDropdown bag={bag} onCheckout={handleCheckoutAll} isCheckingOut={isCheckingOut} onViewItem={handleViewBagItem} compact />
-            )}
-            {/* Price + buy */}
+            {/* Price + buy + cart — single row */}
             <div className="flex flex-row gap-0">
               <div
                 role="status"
@@ -716,7 +701,21 @@ export default function App() {
               >
                 <span className="buy-pill-label">{mobileBuyFlash ? "added" : "buy"}</span>
               </button>
+              <button
+                type="button"
+                className={`${CHROME_TOP_PILL_BASE} buy-pill-link w-[160px] shrink-0 justify-center lowercase select-none`}
+                style={{ ...CHROME_HEADER_FONT }}
+                onClick={handleCartClick}
+              >
+                <span className="buy-pill-label">
+                  {cartEmptyFlash ? "empty" : bag.length > 0 ? `cart ${bag.length}` : "cart"}
+                </span>
+              </button>
             </div>
+            {/* Cart dropdown — pops under the row */}
+            {cartOpen && bag.length > 0 && (
+              <CartDropdown bag={bag} onCheckout={handleCheckoutAll} isCheckingOut={isCheckingOut} onViewItem={handleViewBagItem} compact />
+            )}
           </div>
         )}
       </div>
