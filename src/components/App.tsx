@@ -310,8 +310,17 @@ export default function App() {
   const leftGroupRef = useRef<HTMLDivElement>(null);
   const [leftChromeStackPx, setLeftChromeStackPx] = useState(LEFT_CHROME_PILL_ROW_PX);
 
-  // Bag state
-  const [bag, setBag] = useState<BagItem[]>([]);
+  // Bag state — persisted in sessionStorage so it survives in-tab navigation
+  const BAG_KEY = "tabi-bag";
+  const [bag, setBag] = useState<BagItem[]>(() => {
+    try {
+      const stored = sessionStorage.getItem(BAG_KEY);
+      return stored ? (JSON.parse(stored) as BagItem[]) : [];
+    } catch { return []; }
+  });
+  useEffect(() => {
+    try { sessionStorage.setItem(BAG_KEY, JSON.stringify(bag)); } catch { /* full */ }
+  }, [bag]);
   const [cartOpen, setCartOpen] = useState(false);
   const [cartEmptyFlash, setCartEmptyFlash] = useState(false);
   const [shareOpen, setShareOpen] = useState(false);
