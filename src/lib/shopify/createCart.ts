@@ -1,4 +1,5 @@
 import type { CustomiserState } from "@/lib/customiser/types";
+import type { BagItem } from "@/lib/bag";
 import {
   ENGRAVING_SLIDER_CONFIG,
   CONCAVE_GEM_BOUNDS,
@@ -21,7 +22,7 @@ function visibleSpaces(text: string): string {
   return text.replace(/ /g, "_");
 }
 
-function buildLineItemAttributes(state: CustomiserState): Array<{ key: string; value: string }> {
+export function buildLineItemAttributes(state: CustomiserState): Array<{ key: string; value: string }> {
   if (!state.variant || !state.finish) return [];
 
   const cfg = ENGRAVING_SLIDER_CONFIG[state.variant];
@@ -40,14 +41,13 @@ function buildLineItemAttributes(state: CustomiserState): Array<{ key: string; v
   }
 
   if (state.variant === "earrings") {
-    if (state.engravingLeft.text) attrs.push({ key: "Left Engraving", value: visibleSpaces(state.engravingLeft.text) });
+    if (state.engravingLeft.text)  attrs.push({ key: "Left Engraving",  value: visibleSpaces(state.engravingLeft.text) });
     if (state.engravingRight.text) attrs.push({ key: "Right Engraving", value: visibleSpaces(state.engravingRight.text) });
   } else {
     if (state.engraving.text) attrs.push({ key: "Engraving", value: visibleSpaces(state.engraving.text) });
   }
 
   // Technical attributes — prefixed with _ so Shopify hides them from customers
-  // but they remain visible in the admin order view for the jeweller.
   if (state.variant === "earrings") {
     attrs.push({ key: "_left_pos_x",  value: toPercent(state.engravingLeft.offsetX,  cfg.posX.min, cfg.posX.max) });
     attrs.push({ key: "_left_pos_y",  value: toPercent(state.engravingLeft.offsetY,  cfg.posY.min, cfg.posY.max) });
@@ -76,74 +76,20 @@ function buildLineItemAttributes(state: CustomiserState): Array<{ key: string; v
 }
 
 /**
- * Form-POST fallback: submits directly to Shopify's /cart/add endpoint with
- * all customisation as line item properties, targeting an already-open window.
- * Does not require the Storefront API — works as long as the product is published.
- * Returns true if the form was submitted successfully.
+ * Creates a Shopify cart via the Storefront API with all items from the bag,
+ * each with their customisation details as line item properties.
+ * Returns the checkout URL or null on failure.
  */
-export function addToCartFormPost(
-  windowName: string,
-  state: CustomiserState,
-  specPdfUrl?: string | null,
-): boolean {
-  if (!state.variant) return false;
-  const product   = PRODUCTS[state.variant];
-  const variantId = product.shopifyVariantId;
-  if (!variantId) return false;
+export async function createShopifyCart(
+  items: BagItem[],
+  specPdfUrls: (string | null)[],
+): Promise<string | null> {
+  if (items.length === 0) return null;
 
-  // Derive store base from the product's storefront URL (e.g. https://tabidsgn.com)
-  const storeBase = product.storefrontProductUrl
-    ? new URL(product.storefrontProductUrl).origin
-    : process.env.NEXT_PUBLIC_SHOPIFY_STORE_URL;
-  if (!storeBase) return false;
-
-  const attrs = buildLineItemAttributes(state);
-  if (specPdfUrl) attrs.push({ key: "_spec_pdf", value: specPdfUrl });
-
-  const form = document.createElement("form");
-  form.method  = "POST";
-  form.action  = `${storeBase}/cart/add`;
-  form.target  = windowName;
-  form.style.display = "none";
-
-  const addInput = (name: string, value: string) => {
-    const el = document.createElement("input");
-    el.type  = "hidden";
-    el.name  = name;
-    el.value = value;
-    form.appendChild(el);
-  };
-
-  addInput("id",        variantId);
-  addInput("quantity",  "1");
-  addInput("return_to", "/checkout");
-  for (const { key, value } of attrs) {
-    addInput(`properties[${key}]`, value);
-  }
-
-  document.body.appendChild(form);
-  form.submit();
-  document.body.removeChild(form);
-  return true;
-}
-
-/**
- * Creates a Shopify cart via the Storefront API with all customisation details
- * attached as line item properties, then returns the checkout URL.
- *
- * Returns null if the product has no `shopifyVariantId`, env vars are missing,
- * or the API call fails — callers should fall back to the plain product page URL.
- */
-export async function createShopifyCart(state: CustomiserState, specPdfUrl?: string | null): Promise<string | null> {
-  if (!state.variant || !state.finish) return null;
-
-  const product = PRODUCTS[state.variant];
   const storeUrl = process.env.NEXT_PUBLIC_SHOPIFY_STORE_URL;
   const token    = process.env.NEXT_PUBLIC_SHOPIFY_STOREFRONT_TOKEN;
   if (!storeUrl || !token) return null;
 
-  // Resolve the real variant GID by product handle — guards against the stored
-  // shopifyVariantId being a product ID rather than a variant ID.
   const handleQuery = `
     query variantByHandle($handle: String!) {
       product(handle: $handle) {
@@ -151,24 +97,42 @@ export async function createShopifyCart(state: CustomiserState, specPdfUrl?: str
       }
     }
   `;
-  let merchandiseId: string | null = null;
-  try {
-    const hRes = await fetch(`${storeUrl}/api/${STOREFRONT_API_VERSION}/graphql.json`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json", "X-Shopify-Storefront-Access-Token": token },
-      body: JSON.stringify({ query: handleQuery, variables: { handle: product.shopifyHandle } }),
-    });
-    const hData = (await hRes.json()) as { data?: { product?: { variants?: { edges?: Array<{ node?: { id?: string } }> } } } };
-    merchandiseId = hData?.data?.product?.variants?.edges?.[0]?.node?.id ?? null;
-    console.log("[createCart] resolved merchandiseId for", product.shopifyHandle, "→", merchandiseId);
-  } catch (err) {
-    console.error("[createCart] handle lookup failed:", err);
-  }
-  if (!merchandiseId) return null;
-  const attributes    = buildLineItemAttributes(state);
-  if (specPdfUrl) {
-    attributes.push({ key: "_spec_pdf", value: specPdfUrl });
-  }
+
+  // Resolve variant GIDs for all items in parallel
+  const resolvedIds = await Promise.all(
+    items.map(async (item) => {
+      if (!item.state.variant) return null;
+      const product = PRODUCTS[item.state.variant];
+      try {
+        const res = await fetch(`${storeUrl}/api/${STOREFRONT_API_VERSION}/graphql.json`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json", "X-Shopify-Storefront-Access-Token": token },
+          body: JSON.stringify({ query: handleQuery, variables: { handle: product.shopifyHandle } }),
+        });
+        const data = (await res.json()) as { data?: { product?: { variants?: { edges?: Array<{ node?: { id?: string } }> } } } };
+        const id = data?.data?.product?.variants?.edges?.[0]?.node?.id ?? null;
+        console.log("[createCart] resolved merchandiseId for", product.shopifyHandle, "→", id);
+        return id;
+      } catch (err) {
+        console.error("[createCart] handle lookup failed for", product.shopifyHandle, err);
+        return null;
+      }
+    })
+  );
+
+  // Build lines — skip items where we couldn't resolve the variant
+  const lines = items
+    .map((item, i) => {
+      const merchandiseId = resolvedIds[i];
+      if (!merchandiseId || !item.state.variant || !item.state.finish) return null;
+      const attributes = buildLineItemAttributes(item.state);
+      const pdfUrl = specPdfUrls[i];
+      if (pdfUrl) attributes.push({ key: "_spec_pdf", value: pdfUrl });
+      return { quantity: 1, merchandiseId, attributes };
+    })
+    .filter((l): l is NonNullable<typeof l> => l !== null);
+
+  if (lines.length === 0) return null;
 
   const query = `
     mutation cartCreate($input: CartInput!) {
@@ -186,10 +150,7 @@ export async function createShopifyCart(state: CustomiserState, specPdfUrl?: str
         "Content-Type": "application/json",
         "X-Shopify-Storefront-Access-Token": token,
       },
-      body: JSON.stringify({
-        query,
-        variables: { input: { lines: [{ quantity: 1, merchandiseId, attributes }] } },
-      }),
+      body: JSON.stringify({ query, variables: { input: { lines } } }),
     });
 
     if (!res.ok) {

@@ -406,7 +406,7 @@ interface SceneCanvasProps {
   previewLayoutEpoch?: number;
   /** Dev FPS samples — parent owns DOM overlay; collector stays inside Canvas. */
   devFpsSampleRef:    RefObject<(sample: DevFpsSample) => void>;
-  onBuy?: (win?: Window | null, winName?: string) => Promise<void>;
+  onAddToBag?: () => void;
   onSave?: () => Promise<void>;
   shareUrl?: string;
   onSceneReady?: () => void;
@@ -427,7 +427,7 @@ export default function SceneCanvas({
   cameraResetSignal,
   previewLayoutEpoch = 0,
   devFpsSampleRef,
-  onBuy,
+  onAddToBag,
   onSave,
   shareUrl,
   onSceneReady,
@@ -506,7 +506,7 @@ export default function SceneCanvas({
       className="hidden md:flex fixed bottom-4 left-4 z-[100] flex-row items-center gap-0"
       style={{ opacity: sceneReady ? 1 : 0, transition: "opacity 0.3s ease" }}
     >
-      <PreviewShopPills variant={variant} onBuy={onBuy} onSave={onSave} shareUrl={shareUrl} />
+      <PreviewShopPills variant={variant} onAddToBag={onAddToBag} onSave={onSave} shareUrl={shareUrl} />
     </div>
     </>
   );

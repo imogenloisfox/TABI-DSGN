@@ -36,7 +36,7 @@ interface PreviewStageProps {
   cameraResetSignal?: number;
   /** Incremented after sidebar chrome changes; used to resync WebGL once CSS width transition finishes. */
   previewLayoutEpoch?: number;
-  onBuy?: (win?: Window | null, winName?: string) => Promise<void>;
+  onAddToBag?: () => void;
   onSave?: () => Promise<void>;
   shareUrl?: string;
   onSceneReady?: () => void;
@@ -56,7 +56,7 @@ export default function PreviewStage({
   onCaptureReady,
   cameraResetSignal,
   previewLayoutEpoch = 0,
-  onBuy,
+  onAddToBag,
   onSave,
   shareUrl,
   onSceneReady,
@@ -89,7 +89,7 @@ export default function PreviewStage({
           cameraResetSignal={cameraResetSignal}
           previewLayoutEpoch={previewLayoutEpoch}
           devFpsSampleRef={devFpsSampleRef}
-          onBuy={onBuy}
+          onAddToBag={onAddToBag}
           onSave={onSave}
           shareUrl={shareUrl}
           onSceneReady={onSceneReady}

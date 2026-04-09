@@ -185,6 +185,12 @@ body {
     color: #f1f1f1 !important;
     transition: color 150ms ease;
   }
+  /* #2a2c2d (dark) pills — light text on hover */
+  .mobile-btn-hover.mobile-btn-hover-dark:hover:not(:active) > *,
+  .mobile-btn-hover.mobile-btn-hover-dark:hover:not(:active) span {
+    color: #8d8d8d !important;
+    transition: color 150ms ease;
+  }
 }
 
 

@@ -14,7 +14,7 @@ export const GEMSTONES: GemstoneOption[] = [
   { id: "pink-tourmaline",  label: "lab ruby",         hex: "#c42a56", shopifyValue: "Lab Ruby" },
   { id: "garnet",           label: "garnet",           hex: "#6e121f", shopifyValue: "Garnet" },
   { id: "hessonite",        label: "dark citrine",     hex: "#a84a10", shopifyValue: "Dark Citrine" },
-  { id: "citrine",          label: "citrine",          hex: "#fef6b2", shopifyValue: "Citrine" },
+  { id: "citrine",          label: "lemon quartz",     hex: "#fef6b2", shopifyValue: "Lemon Quartz" },
   { id: "peridot",          label: "peridot",          hex: "#d0e76e", shopifyValue: "Peridot" },
   { id: "green-quartz",     label: "green quartz",     hex: "#ecefe8", shopifyValue: "Green Quartz" },
   { id: "smoky-quartz",     label: "smoky quartz",     hex: "#7d6b5c", shopifyValue: "Smoky Quartz" },

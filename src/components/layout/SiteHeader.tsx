@@ -1,5 +1,6 @@
 "use client";
 
+import type { RefObject } from "react";
 import VanishButton from "@/components/ui/VanishButton";
 import LoopParticleText from "@/components/ui/LoopParticleText";
 import {
@@ -26,6 +27,12 @@ interface SiteHeaderProps {
   onSave?:    () => void;
   isSaving?:  boolean;
   onReset?:   () => void;
+  /** Mobile customiser: share button in header row */
+  onShare?:       () => void;
+  shareLabel?:    string;
+  shareDisabled?: boolean;
+  /** Ref for outside-click detection on mobile share button */
+  shareButtonRef?: RefObject<HTMLButtonElement | null>;
 }
 
 /**
@@ -44,7 +51,12 @@ export default function SiteHeader({
   onSave,
   isSaving = false,
   onReset,
+  onShare,
+  shareLabel = "share",
+  shareDisabled = false,
+  shareButtonRef,
 }: SiteHeaderProps) {
+  const isCustomiser = !!onBack;
   const tabiPill = onBack ? (
     <VanishButton
       onClick={onBack}
@@ -70,45 +82,73 @@ export default function SiteHeader({
 
       {/* Pill row — scrolls horizontally on mobile if all pills don't fit */}
       <div className="flex items-center gap-0 self-start overflow-x-auto whitespace-nowrap">
+        {/* Info — hidden on mobile when in customiser */}
         <VanishButton
           onClick={onInfoToggle}
           aria-expanded={infoOpen}
           aria-controls="site-info-columns"
-          className={`${CHROME_TOP_PILL_BASE} relative z-10 w-[80px] shrink-0 overflow-visible normal-case lowercase !bg-[#d9d9d9] text-[#2a2c2d] mobile-btn-hover mobile-btn-hover-d9 ${HEADER_CHROME_HOVER_INVERT}`}
+          className={`${isCustomiser ? "hidden md:flex" : "flex"} ${CHROME_TOP_PILL_BASE} relative z-10 w-[80px] shrink-0 overflow-visible normal-case lowercase !bg-[#d9d9d9] text-[#2a2c2d] mobile-btn-hover mobile-btn-hover-d9 ${HEADER_CHROME_HOVER_INVERT}`}
           style={{ ...CHROME_HEADER_FONT }}
         >
           info
         </VanishButton>
 
-        {onSave ? (
-          <VanishButton
-            onClick={onSave}
-            disabled={isSaving}
-            className={`flex ${CHROME_TOP_PILL_BASE} relative z-10 w-[80px] shrink-0 justify-center overflow-visible normal-case lowercase !bg-[#b1b1b1] !text-[#2a2c2d] disabled:cursor-wait disabled:opacity-50 mobile-btn-hover mobile-btn-hover-b1 ${HEADER_CHROME_HOVER_INVERT}`}
-            style={{ ...CHROME_HEADER_FONT }}
-          >
-            {isSaving ? "saving…" : "save"}
-          </VanishButton>
-        ) : null}
-
+        {/* Mobile customiser order: remix → reset → save → share */}
         {showRemixButton && onRemix ? (
           <button
             onClick={onRemix}
-            className={`flex md:hidden ${CHROME_TOP_PILL_BASE} relative z-10 w-[80px] shrink-0 justify-center overflow-visible normal-case lowercase remix-btn`}
+            className={`flex md:hidden ${CHROME_TOP_PILL_BASE} relative z-10 w-[80px] shrink-0 justify-center overflow-visible normal-case lowercase !bg-[#d9d9d9] !text-[#2a2c2d] mobile-btn-hover mobile-btn-hover-d9`}
             style={{ ...CHROME_HEADER_FONT }}
           >
-            <span className="remix-label">remix</span>
+            remix
           </button>
         ) : null}
 
         {onReset ? (
           <VanishButton
             onClick={onReset}
-            className={`flex md:hidden ${CHROME_TOP_PILL_BASE} relative z-10 w-[80px] shrink-0 justify-center overflow-visible normal-case lowercase !bg-[#777777] !text-[#2a2c2d] mobile-btn-hover ${HEADER_CHROME_HOVER_INVERT}`}
+            className={`flex md:hidden ${CHROME_TOP_PILL_BASE} relative z-10 w-[80px] shrink-0 justify-center overflow-visible normal-case lowercase !bg-[#b1b1b1] !text-[#2a2c2d] mobile-btn-hover mobile-btn-hover-b1 ${HEADER_CHROME_HOVER_INVERT}`}
             style={{ ...CHROME_HEADER_FONT }}
           >
             reset
           </VanishButton>
+        ) : null}
+
+        {onSave ? (
+          <>
+            {/* Desktop save — #b1b1b1 */}
+            <VanishButton
+              onClick={onSave}
+              disabled={isSaving}
+              className={`hidden md:flex ${CHROME_TOP_PILL_BASE} relative z-10 w-[80px] shrink-0 justify-center overflow-visible normal-case lowercase !bg-[#b1b1b1] !text-[#2a2c2d] disabled:cursor-wait disabled:opacity-50 mobile-btn-hover mobile-btn-hover-b1 ${HEADER_CHROME_HOVER_INVERT}`}
+              style={{ ...CHROME_HEADER_FONT }}
+            >
+              {isSaving ? "saving…" : "save"}
+            </VanishButton>
+            {/* Mobile save — #8d8d8d in customiser, #b1b1b1 otherwise */}
+            <VanishButton
+              onClick={onSave}
+              disabled={isSaving}
+              className={`flex md:hidden ${CHROME_TOP_PILL_BASE} relative z-10 w-[80px] shrink-0 justify-center overflow-visible normal-case lowercase !text-[#2a2c2d] disabled:cursor-wait disabled:opacity-50 mobile-btn-hover ${HEADER_CHROME_HOVER_INVERT}`}
+              style={{ ...CHROME_HEADER_FONT, backgroundColor: isCustomiser ? "#8d8d8d" : "#b1b1b1" }}
+            >
+              {isSaving ? "saving…" : "save"}
+            </VanishButton>
+          </>
+        ) : null}
+
+        {/* Mobile customiser: share in header row */}
+        {onShare ? (
+          <button
+            ref={shareButtonRef}
+            type="button"
+            onClick={onShare}
+            disabled={shareDisabled}
+            className={`flex md:hidden ${CHROME_TOP_PILL_BASE} relative z-10 w-[80px] shrink-0 justify-center overflow-visible normal-case lowercase !text-[#2a2c2d] mobile-btn-hover mobile-btn-hover-dark`}
+            style={{ ...CHROME_HEADER_FONT, backgroundColor: "#676767" }}
+          >
+            {shareLabel}
+          </button>
         ) : null}
 
         {showPlayButton && onPlayToggle ? (

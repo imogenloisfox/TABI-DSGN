@@ -22,10 +22,9 @@ import {
   productUsesGemstone,
   variantUsesGemColour,
 } from "@/lib/customiser/types";
-import { createShopifyCart, addToCartFormPost } from "@/lib/shopify/createCart";
+import type { BagItem } from "@/lib/bag";
+import { PRODUCT_PRICE_GBP } from "@/lib/productPricing";
 import { encodeShareState } from "@/lib/shareLink";
-import { upload } from "@vercel/blob/client";
-import { getShopifyProductUrl } from "@/lib/shopifyProductUrl";
 import { buildStateFromPreset, captureCurrentAsPreset, REMIX_PRESETS } from "@/lib/remixPresets";
 import type { RemixPreset } from "@/lib/remixPresets";
 import { useEngravingTexture, CANVAS_SIZE } from "@/hooks/useEngravingTexture";
@@ -71,10 +70,10 @@ function buildInitialState(initialCategory?: ProductCategory, initialVariant?: P
 }
 
 export interface CustomiserActions {
-  save:  () => Promise<void>;
-  reset: () => void;
-  buy:   (win?: Window | null, winName?: string) => Promise<void>;
-  remix: () => void;
+  save:       () => Promise<void>;
+  reset:      () => void;
+  addToBag:   () => void;
+  remix:      () => void;
 }
 
 interface CustomiserExperienceProps {
@@ -100,6 +99,8 @@ interface CustomiserExperienceProps {
   onShareUrlChange?: (url: string) => void;
   /** Fires once when the 3D scene has finished loading. */
   onSceneReady?: () => void;
+  /** Fires when the user clicks "buy" — passes the current design as a bag item. */
+  onAddToBag?: (item: BagItem) => void;
 }
 
 export default function CustomiserExperience({
@@ -116,6 +117,7 @@ export default function CustomiserExperience({
   onVariantChange,
   onShareUrlChange,
   onSceneReady,
+  onAddToBag,
 }: CustomiserExperienceProps) {
   const [state, setState] = useState<CustomiserState>(() => {
     const base = buildInitialState(initialCategory, initialVariant);
@@ -419,119 +421,27 @@ export default function CustomiserExperience({
     engravingTextures, earringLeftTextures, earringRightTextures,
   ]);
 
-  const [isBuyingOverlay, setIsBuyingOverlay] = useState(false);
-
-  const handleBuy = useCallback(async (preOpenedWin?: Window | null, preOpenedWinName?: string) => {
-    const isMobile = window.innerWidth < 768 || /Mobi|Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
-    let winName = preOpenedWinName ?? `tabi_checkout_${Date.now()}`;
-
-    // Desktop: open a branded loading tab immediately (must be in the sync gesture
-    // handler — popup blockers kill window.open() called after an await).
-    // If caller already opened the window (to preserve gesture context), reuse it.
-    let win: Window | null = preOpenedWin ?? null;
-    if (!isMobile && !win) {
-      win = window.open("about:blank", winName);
-      if (win) {
-        const origin = window.location.origin;
-        win.document.write(`<!DOCTYPE html><html><head><title>tabi dsgn</title>
-          <style>
-            @font-face{font-family:"ABC Diatype";src:url("${origin}/fonts/ABCDiatype-Bold.otf") format("opentype");font-weight:500;font-style:normal;font-display:swap}
-            body{margin:0;display:flex;align-items:center;justify-content:center;height:100vh;
-            background:#ffffff;font-family:"ABC Diatype",ui-sans-serif,system-ui,sans-serif}
-            .brand{font-size:14px;font-weight:500;color:#2a2c2d;letter-spacing:-0.3px;
-            text-transform:lowercase;animation:pulse 1.8s ease-in-out infinite}
-            @keyframes pulse{0%,100%{transform:scale(1);opacity:.85}50%{transform:scale(1.12);opacity:1}}
-          </style>
-          </head><body><div class="brand">tabi dsgn</div></body></html>`);
-        win.document.close();
-      }
-    } else {
-      // Mobile: show overlay on current page — no blank tab, no popup blocker.
-      setIsBuyingOverlay(true);
-    }
-
-    // Step 1: Capture renders + generate PDF blob.
-    let pdfBlobResult: Blob | null = null;
-    try {
-      let heroFrontView: string | null = null;
-      let renderViews: { front: string; left: string; right: string } | null = null;
-      if (captureHandleRef.current) {
-        heroFrontView = await captureHandleRef.current.captureHeroFront();
-        renderViews   = await captureHandleRef.current.captureAngles();
-      }
-
-      const bumpCanvas      = isEarrings ? (earringLeftTextures?.bumpCanvas  ?? null) : (engravingTextures?.bumpCanvas    ?? null);
-      const bumpCanvasRight = isEarrings ? (earringRightTextures?.bumpCanvas ?? null) : undefined;
-      const variant         = state.variant;
-      const engTarget       = isEarrings ? "earringLeft" as const : variant?.startsWith("pendant") ? "pendant" as const : "ring" as const;
-      const { w, h }        = CANVAS_SIZE[engTarget];
-      const engraving       = isEarrings ? state.engravingLeft : state.engraving;
-
-      const pdfBlob = await exportSpecSheet({
-        variant,
-        heroFrontView,
-        finish:            state.finish,
-        gemstoneLabel:     variant && productUsesGemstone(variant) && state.gemstone ? (getGemstone(state.gemstone)?.label ?? null) : null,
-        ringSize:          isRing ? (state.ringSize ?? null) : null,
-        engravingText:     engraving.text,
-        engravingOffsetX:  engraving.offsetX,
-        engravingOffsetY:  engraving.offsetY,
-        engravingFontSize: engraving.fontSize,
-        engravingRotation: engraving.rotation,
-        engravingSpacing:  engraving.lineSpacing,
-        engravingRightText:     isEarrings ? state.engravingRight.text        : undefined,
-        engravingRightOffsetX:  isEarrings ? state.engravingRight.offsetX     : undefined,
-        engravingRightOffsetY:  isEarrings ? state.engravingRight.offsetY     : undefined,
-        engravingRightFontSize: isEarrings ? state.engravingRight.fontSize    : undefined,
-        engravingRightRotation: isEarrings ? state.engravingRight.rotation    : undefined,
-        engravingRightSpacing:  isEarrings ? state.engravingRight.lineSpacing : undefined,
-        gemPosition:      !isEarrings ? state.gemPosition      : undefined,
-        gemPositionLeft:  isEarrings  ? state.gemPositionLeft  : undefined,
-        gemPositionRight: isEarrings  ? state.gemPositionRight : undefined,
-        renderViews,
-        bumpCanvas,
-        bumpCanvasRight,
-        canvasTarget: `${engTarget} (${w}×${h})`,
-        shareUrl,
-        returnBlob: true,
-      });
-      if (pdfBlob instanceof Blob) pdfBlobResult = pdfBlob;
-    } catch (err) {
-      console.error("[buy] PDF generation failed — continuing to checkout:", err);
-    }
-
-    // Step 2: Upload PDF first, then create Shopify cart with the PDF URL attached.
-    let specPdfUrl: string | null = null;
-    try {
-      if (pdfBlobResult) {
-        specPdfUrl = await upload(`specs/spec-${Date.now()}.pdf`, pdfBlobResult, {
-          access: "public",
-          handleUploadUrl: "/api/upload-spec",
-          contentType: "application/pdf",
-        }).then((b) => b.url).catch(() => null);
-      }
-      const checkoutUrl = await createShopifyCart(state, specPdfUrl);
-      const url = checkoutUrl;
-
-      setIsBuyingOverlay(false);
-
-      if (url) {
-        if (isMobile) {
-          window.location.href = url;
-        } else if (win) {
-          win.location.href = url;
-        }
-      } else {
-        const posted = addToCartFormPost(winName, state, specPdfUrl);
-        if (!posted && win) win.close();
-        if (!posted && isMobile) setIsBuyingOverlay(false);
-      }
-    } catch (err) {
-      console.error("[buy] Checkout failed:", err);
-      setIsBuyingOverlay(false);
-      if (win) win.close();
-    }
-  }, [state, isEarrings, isRing, engravingTextures, earringLeftTextures, earringRightTextures]);
+  // "Buy" = add current design to the bag in App. No checkout happens here.
+  const handleAddToBag = useCallback(() => {
+    if (!state.variant || !onAddToBag) return;
+    const VARIANT_LABEL: Record<string, string> = {
+      ringClassic:      "moi ring",
+      ringConcave:      "sui ring",
+      ringClassicNoGem: "meus ring",
+      ringConcaveNoGem: "ego ring",
+      pendantOne:       "soi pendant",
+      pendantTwo:       "moment pendant",
+      pendantMesmo:     "mesmo pendant",
+      earrings:         "earrings",
+    };
+    onAddToBag({
+      id:       typeof crypto !== "undefined" ? crypto.randomUUID() : String(Date.now()),
+      state:    { ...state },
+      shareUrl,
+      label:    VARIANT_LABEL[state.variant] ?? state.variant,
+      price:    PRODUCT_PRICE_GBP[state.variant],
+    });
+  }, [state, shareUrl, onAddToBag]);
 
   // Register stable wrappers with App so header save/reset buttons can call them.
   // Refs always point to the latest version — safe with a mount-only effect.
@@ -539,12 +449,12 @@ export default function CustomiserExperience({
   handleExportSpecRef.current = handleExportSpec;
   const resetAllRef = useRef(resetAll);
   resetAllRef.current = resetAll;
-  const handleBuyRef = useRef(handleBuy);
-  handleBuyRef.current = handleBuy;
+  const handleAddToBagRef = useRef(handleAddToBag);
+  handleAddToBagRef.current = handleAddToBag;
   const handleEngravingRemixRef = useRef(handleEngravingRemix);
   handleEngravingRemixRef.current = handleEngravingRemix;
   useEffect(() => {
-    onRegisterActions?.({ save: () => handleExportSpecRef.current(), reset: () => resetAllRef.current(), buy: () => handleBuyRef.current(), remix: () => handleEngravingRemixRef.current() });
+    onRegisterActions?.({ save: () => handleExportSpecRef.current(), reset: () => resetAllRef.current(), addToBag: () => handleAddToBagRef.current(), remix: () => handleEngravingRemixRef.current() });
     return () => { onRegisterActions?.(null); };
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
@@ -606,18 +516,6 @@ export default function CustomiserExperience({
       className="relative h-dvh w-full transition-opacity duration-500 ease-out"
       style={{ opacity: exiting ? 0 : visible ? 1 : 0 }}
     >
-      {/* Mobile buying overlay — shown while cart is being created */}
-      {isBuyingOverlay && (
-        <div className="fixed inset-0 z-[200] flex items-center justify-center bg-white md:hidden">
-          <span
-            className="text-[14px] lowercase text-[#2a2c2d]"
-            style={{ fontFamily: '"ABC Diatype", ui-sans-serif, system-ui, sans-serif', fontWeight: 500, animation: "pulse 1.8s ease-in-out infinite" }}
-          >
-            tabi dsgn
-          </span>
-        </div>
-      )}
-
     <StageLayout
       view={state.view}
       startScreen={<StartPrompt onStart={enterWorkspace} />}
@@ -860,7 +758,7 @@ export default function CustomiserExperience({
                 variant={state.variant}
                 finish={state.finish}
                 gemstone={state.gemstone}
-                onBuy={handleBuy}
+                onAddToBag={handleAddToBag}
                 onSave={handleExportSpec}
                 shareUrl={shareUrl}
                 onSceneReady={onSceneReady}
