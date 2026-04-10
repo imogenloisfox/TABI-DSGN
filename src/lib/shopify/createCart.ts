@@ -90,41 +90,13 @@ export async function createShopifyCart(
   const token    = process.env.NEXT_PUBLIC_SHOPIFY_STOREFRONT_TOKEN;
   if (!storeUrl || !token) return null;
 
-  const handleQuery = `
-    query variantByHandle($handle: String!) {
-      product(handle: $handle) {
-        variants(first: 1) { edges { node { id } } }
-      }
-    }
-  `;
-
-  // Resolve variant GIDs for all items in parallel
-  const resolvedIds = await Promise.all(
-    items.map(async (item) => {
-      if (!item.state.variant) return null;
-      const product = PRODUCTS[item.state.variant];
-      try {
-        const res = await fetch(`${storeUrl}/api/${STOREFRONT_API_VERSION}/graphql.json`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json", "X-Shopify-Storefront-Access-Token": token },
-          body: JSON.stringify({ query: handleQuery, variables: { handle: product.shopifyHandle } }),
-        });
-        const data = (await res.json()) as { data?: { product?: { variants?: { edges?: Array<{ node?: { id?: string } }> } } } };
-        const id = data?.data?.product?.variants?.edges?.[0]?.node?.id ?? null;
-        console.log("[createCart] resolved merchandiseId for", product.shopifyHandle, "→", id);
-        return id;
-      } catch (err) {
-        console.error("[createCart] handle lookup failed for", product.shopifyHandle, err);
-        return null;
-      }
-    })
-  );
-
-  // Build lines — skip items where we couldn't resolve the variant
+  // Build GIDs directly from hardcoded shopifyVariantId — works for draft products too
   const lines = items
     .map((item, i) => {
-      const merchandiseId = resolvedIds[i];
-      if (!merchandiseId || !item.state.variant || !item.state.finish) return null;
+      if (!item.state.variant || !item.state.finish) return null;
+      const product = PRODUCTS[item.state.variant];
+      if (!product.shopifyVariantId) return null;
+      const merchandiseId = `gid://shopify/ProductVariant/${product.shopifyVariantId}`;
       const attributes = buildLineItemAttributes(item.state);
       const pdfUrl = specPdfUrls[i];
       if (pdfUrl) attributes.push({ key: "_spec_pdf", value: pdfUrl });
