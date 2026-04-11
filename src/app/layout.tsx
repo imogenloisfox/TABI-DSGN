@@ -65,7 +65,10 @@ export default function RootLayout({
             display: "flex",
             alignItems: "center",
             justifyContent: "center",
-            background: "#ffffff",
+            background: "#e8e8e8",
+            backgroundImage: "url('/og-image.jpg')",
+            backgroundSize: "cover",
+            backgroundPosition: "center",
           }}
         >
           <span
