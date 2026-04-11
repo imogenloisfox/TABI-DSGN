@@ -7,6 +7,20 @@ export const metadata: Metadata = {
   title: "TABI DSGN TOOLS",
   description:
     "Customise your TABI DSGN jewellery. Choose a ring, pendant or earrings, type your engraving, select your gemstone, and choose your finish.",
+  openGraph: {
+    title: "TABI DSGN TOOLS",
+    description: "Customise your TABI DSGN jewellery — engraving, gemstone, finish.",
+    url: "https://tabidsgn.tools",
+    siteName: "TABI DSGN",
+    images: [{ url: "https://tabidsgn.tools/og-image.jpg", width: 1200, height: 630 }],
+    type: "website",
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "TABI DSGN TOOLS",
+    description: "Customise your TABI DSGN jewellery — engraving, gemstone, finish.",
+    images: ["https://tabidsgn.tools/og-image.jpg"],
+  },
   manifest: "/site.webmanifest",
   icons: {
     icon: [
