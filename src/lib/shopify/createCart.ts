@@ -90,13 +90,48 @@ export async function createShopifyCart(
   const token    = process.env.NEXT_PUBLIC_SHOPIFY_STOREFRONT_TOKEN;
   if (!storeUrl || !token) return null;
 
-  // Build GIDs directly from hardcoded shopifyVariantId — works for draft products too
+  const handleQuery = `
+    query variantByHandle($handle: String!) {
+      product(handle: $handle) {
+        variants(first: 1) { edges { node { id } } }
+      }
+    }
+  `;
+
+  // Resolve variant GIDs — prefer hardcoded ID, fall back to handle lookup
+  const resolvedIds = await Promise.all(
+    items.map(async (item) => {
+      if (!item.state.variant) return null;
+      const product = PRODUCTS[item.state.variant];
+      // Try handle lookup first (works for published products; gives real GID)
+      try {
+        const res = await fetch(`${storeUrl}/api/${STOREFRONT_API_VERSION}/graphql.json`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json", "X-Shopify-Storefront-Access-Token": token },
+          body: JSON.stringify({ query: handleQuery, variables: { handle: product.shopifyHandle } }),
+        });
+        const data = (await res.json()) as { data?: { product?: { variants?: { edges?: Array<{ node?: { id?: string } }> } } } };
+        const gid = data?.data?.product?.variants?.edges?.[0]?.node?.id ?? null;
+        console.log("[createCart] handle lookup", product.shopifyHandle, "→", gid);
+        if (gid) return gid;
+      } catch (err) {
+        console.warn("[createCart] handle lookup failed for", product.shopifyHandle, err);
+      }
+      // Fall back to hardcoded GID (needed if products are drafted/unlisted)
+      if (product.shopifyVariantId) {
+        const gid = `gid://shopify/ProductVariant/${product.shopifyVariantId}`;
+        console.log("[createCart] using hardcoded GID for", product.shopifyHandle, "→", gid);
+        return gid;
+      }
+      return null;
+    })
+  );
+
   const lines = items
     .map((item, i) => {
       if (!item.state.variant || !item.state.finish) return null;
-      const product = PRODUCTS[item.state.variant];
-      if (!product.shopifyVariantId) return null;
-      const merchandiseId = `gid://shopify/ProductVariant/${product.shopifyVariantId}`;
+      const merchandiseId = resolvedIds[i];
+      if (!merchandiseId) return null;
       const attributes = buildLineItemAttributes(item.state);
       const pdfUrl = specPdfUrls[i];
       if (pdfUrl) attributes.push({ key: "_spec_pdf", value: pdfUrl });
