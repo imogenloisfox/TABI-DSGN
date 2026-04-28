@@ -396,11 +396,19 @@ export default function App() {
 
     (async () => {
       try {
+        // Capture 3D renders for the current design (only the live scene can be captured)
+        let liveCapture: { heroFrontView: string | null; renderViews: { front: string; left: string; right: string } | null } = { heroFrontView: null, renderViews: null };
+        if (customiserActions?.captureRenderViews) {
+          try { liveCapture = await customiserActions.captureRenderViews(); } catch { /* non-fatal */ }
+        }
+        const liveItem = bag[bag.length - 1]; // most recent = current design in scene
+
         // Generate + upload PDFs for all items in parallel
         const pdfUrls = await Promise.all(
           bag.map(async (item) => {
             try {
               const { state } = item;
+              const isCurrentItem = item === liveItem;
               const isEarrings = state.variant === "earrings";
               const isRing = state.variant ? variantIsRing(state.variant) : false;
               const engTarget = isEarrings ? "earringLeft" as const : state.variant?.startsWith("pendant") ? "pendant" as const : "ring" as const;
@@ -409,8 +417,8 @@ export default function App() {
 
               const blob = await exportSpecSheet({
                 variant: state.variant,
-                heroFrontView: null,
-                renderViews: null,
+                heroFrontView: isCurrentItem ? liveCapture.heroFrontView : null,
+                renderViews: isCurrentItem ? liveCapture.renderViews : null,
                 bumpCanvas: null,
                 finish: state.finish,
                 gemstoneLabel: state.variant && productUsesGemstone(state.variant) && state.gemstone

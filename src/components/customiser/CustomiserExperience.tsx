@@ -74,6 +74,7 @@ export interface CustomiserActions {
   reset:      () => void;
   addToBag:   () => void;
   remix:      () => void;
+  captureRenderViews: () => Promise<{ heroFrontView: string | null; renderViews: { front: string; left: string; right: string } | null }>;
 }
 
 interface CustomiserExperienceProps {
@@ -454,7 +455,21 @@ export default function CustomiserExperience({
   const handleEngravingRemixRef = useRef(handleEngravingRemix);
   handleEngravingRemixRef.current = handleEngravingRemix;
   useEffect(() => {
-    onRegisterActions?.({ save: () => handleExportSpecRef.current(), reset: () => resetAllRef.current(), addToBag: () => handleAddToBagRef.current(), remix: () => handleEngravingRemixRef.current() });
+    onRegisterActions?.({
+      save:    () => handleExportSpecRef.current(),
+      reset:   () => resetAllRef.current(),
+      addToBag: () => handleAddToBagRef.current(),
+      remix:   () => handleEngravingRemixRef.current(),
+      captureRenderViews: async () => {
+        let heroFrontView: string | null = null;
+        let renderViews: { front: string; left: string; right: string } | null = null;
+        if (captureHandleRef.current) {
+          heroFrontView = await captureHandleRef.current.captureHeroFront();
+          renderViews   = await captureHandleRef.current.captureAngles();
+        }
+        return { heroFrontView, renderViews };
+      },
+    });
     return () => { onRegisterActions?.(null); };
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
