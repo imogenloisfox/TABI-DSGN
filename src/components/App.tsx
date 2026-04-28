@@ -20,7 +20,8 @@ import InfoColumns from "./ui/InfoColumns";
 import PlayHintPanel from "./ui/PlayHintPanel";
 import { upload } from "@vercel/blob/client";
 import { createShopifyCart } from "@/lib/shopify/createCart";
-import { exportSpecSheet } from "@/lib/customiser/exportSpecSheet";
+import { exportMultiItemSpecSheet } from "@/lib/customiser/exportSpecSheet";
+import type { MultiItemSpecParams } from "@/lib/customiser/exportSpecSheet";
 import { CANVAS_SIZE } from "@/hooks/useEngravingTexture";
 import {
   productUsesGemstone,
@@ -396,65 +397,58 @@ export default function App() {
 
     (async () => {
       try {
-        // Capture 3D renders for the current design (only the live scene can be captured)
-        let liveCapture: { heroFrontView: string | null; renderViews: { front: string; left: string; right: string } | null } = { heroFrontView: null, renderViews: null };
-        if (customiserActions?.captureRenderViews) {
-          try { liveCapture = await customiserActions.captureRenderViews(); } catch { /* non-fatal */ }
-        }
-        const liveItem = bag[bag.length - 1]; // most recent = current design in scene
+        // Build spec params for all bag items — renders stored at add-to-bag time
+        const specItems: MultiItemSpecParams[] = bag.map((item) => {
+          const { state } = item;
+          const isEarrings = state.variant === "earrings";
+          const isRing = state.variant ? variantIsRing(state.variant) : false;
+          const engTarget = isEarrings ? "earringLeft" as const : state.variant?.startsWith("pendant") ? "pendant" as const : "ring" as const;
+          const { w, h } = CANVAS_SIZE[engTarget];
+          const engraving = isEarrings ? state.engravingLeft : state.engraving;
+          return {
+            variant: state.variant,
+            heroFrontView: item.renders?.heroFrontView ?? null,
+            renderViews: item.renders?.renderViews ?? null,
+            bumpCanvas: null,
+            finish: state.finish,
+            gemstoneLabel: state.variant && productUsesGemstone(state.variant) && state.gemstone
+              ? (getGemstone(state.gemstone)?.label ?? null) : null,
+            ringSize: isRing ? (state.ringSize ?? null) : null,
+            engravingText: engraving.text,
+            engravingOffsetX: engraving.offsetX,
+            engravingOffsetY: engraving.offsetY,
+            engravingFontSize: engraving.fontSize,
+            engravingRotation: engraving.rotation,
+            engravingSpacing: engraving.lineSpacing,
+            engravingRightText: isEarrings ? state.engravingRight.text : undefined,
+            engravingRightOffsetX: isEarrings ? state.engravingRight.offsetX : undefined,
+            engravingRightOffsetY: isEarrings ? state.engravingRight.offsetY : undefined,
+            engravingRightFontSize: isEarrings ? state.engravingRight.fontSize : undefined,
+            engravingRightRotation: isEarrings ? state.engravingRight.rotation : undefined,
+            engravingRightSpacing: isEarrings ? state.engravingRight.lineSpacing : undefined,
+            gemPosition: !isEarrings ? state.gemPosition : undefined,
+            gemPositionLeft: isEarrings ? state.gemPositionLeft : undefined,
+            gemPositionRight: isEarrings ? state.gemPositionRight : undefined,
+            canvasTarget: `${engTarget} (${w}×${h})`,
+            shareUrl: item.shareUrl,
+          };
+        });
 
-        // Generate + upload PDFs for all items in parallel
-        const pdfUrls = await Promise.all(
-          bag.map(async (item) => {
-            try {
-              const { state } = item;
-              const isCurrentItem = item === liveItem;
-              const isEarrings = state.variant === "earrings";
-              const isRing = state.variant ? variantIsRing(state.variant) : false;
-              const engTarget = isEarrings ? "earringLeft" as const : state.variant?.startsWith("pendant") ? "pendant" as const : "ring" as const;
-              const { w, h } = CANVAS_SIZE[engTarget];
-              const engraving = isEarrings ? state.engravingLeft : state.engraving;
+        // Generate one combined PDF for the whole order, upload once
+        let combinedPdfUrl: string | null = null;
+        try {
+          const blob = await exportMultiItemSpecSheet(specItems);
+          if (blob) {
+            combinedPdfUrl = await upload(`specs/order-${Date.now()}.pdf`, blob, {
+              access: "public",
+              handleUploadUrl: "/api/upload-spec",
+              contentType: "application/pdf",
+            }).then((b) => b.url).catch(() => null);
+          }
+        } catch { /* non-fatal */ }
 
-              const blob = await exportSpecSheet({
-                variant: state.variant,
-                heroFrontView: isCurrentItem ? liveCapture.heroFrontView : null,
-                renderViews: isCurrentItem ? liveCapture.renderViews : null,
-                bumpCanvas: null,
-                finish: state.finish,
-                gemstoneLabel: state.variant && productUsesGemstone(state.variant) && state.gemstone
-                  ? (getGemstone(state.gemstone)?.label ?? null) : null,
-                ringSize: isRing ? (state.ringSize ?? null) : null,
-                engravingText: engraving.text,
-                engravingOffsetX: engraving.offsetX,
-                engravingOffsetY: engraving.offsetY,
-                engravingFontSize: engraving.fontSize,
-                engravingRotation: engraving.rotation,
-                engravingSpacing: engraving.lineSpacing,
-                engravingRightText: isEarrings ? state.engravingRight.text : undefined,
-                engravingRightOffsetX: isEarrings ? state.engravingRight.offsetX : undefined,
-                engravingRightOffsetY: isEarrings ? state.engravingRight.offsetY : undefined,
-                engravingRightFontSize: isEarrings ? state.engravingRight.fontSize : undefined,
-                engravingRightRotation: isEarrings ? state.engravingRight.rotation : undefined,
-                engravingRightSpacing: isEarrings ? state.engravingRight.lineSpacing : undefined,
-                gemPosition: !isEarrings ? state.gemPosition : undefined,
-                gemPositionLeft: isEarrings ? state.gemPositionLeft : undefined,
-                gemPositionRight: isEarrings ? state.gemPositionRight : undefined,
-                canvasTarget: `${engTarget} (${w}×${h})`,
-                shareUrl: item.shareUrl,
-                returnBlob: true,
-              });
-              if (!(blob instanceof Blob)) return null;
-              return upload(`specs/spec-${Date.now()}.pdf`, blob, {
-                access: "public",
-                handleUploadUrl: "/api/upload-spec",
-                contentType: "application/pdf",
-              }).then((b) => b.url).catch(() => null);
-            } catch {
-              return null;
-            }
-          })
-        );
-
+        // Pass same PDF URL for all line items
+        const pdfUrls = bag.map(() => combinedPdfUrl);
         const checkoutUrl = await createShopifyCart(bag, pdfUrls);
 
         if (checkoutUrl) {

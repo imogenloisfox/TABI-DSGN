@@ -651,6 +651,14 @@ export interface ExportSpecSheetParams {
   finish:            string | null;
   gemstoneLabel:     string | null;
   ringSize:          string | null;
+  /** When provided, pages are added to this existing doc instead of creating a new one. */
+  _doc?:             jsPDF;
+  /** Page number offset when appending to an existing doc. */
+  _pageOffset?:      number;
+  /** Total pages in the full multi-item doc — overrides per-item TOTAL_PAGES when set. */
+  _totalPages?:      number;
+  /** True for the first item in a multi-item doc — suppresses the addPage() call. */
+  _isFirstItem?:     boolean;
   // Left / main engraving
   engravingText:     string;
   engravingOffsetX:  number;
@@ -725,6 +733,10 @@ export async function exportSpecSheet(params: ExportSpecSheetParams): Promise<Bl
     bumpCanvasRight,
     canvasTarget,
     shareUrl,
+    _doc: existingDoc,
+    _pageOffset: pageOffset = 0,
+    _totalPages: totalPagesOverride,
+    _isFirstItem: isFirstItem = false,
   } = params;
 
   const isRing    = variant === "ringClassic" || variant === "ringConcave"
@@ -739,18 +751,22 @@ export async function exportSpecSheet(params: ExportSpecSheetParams): Promise<Bl
   const HBAR   = 12; // header bar height
   const CONTENT_Y = HBAR + 5; // top of content area
 
-  const orderRef   = makeOrderRef();
-  const dateStr    = formatDateTime();
-  const hasHero    = Boolean(heroFrontView);
-  const TOTAL_PAGES = hasHero ? 2 : 1;
+  const orderRef    = makeOrderRef();
+  const dateStr     = formatDateTime();
+  const hasHero     = Boolean(heroFrontView);
+  const itemPages   = hasHero ? 2 : 1;
+  const TOTAL_PAGES = totalPagesOverride ?? itemPages;
 
-  const doc = new jsPDF({ orientation, unit: "mm", format: "a4" });
+  const doc = existingDoc ?? new jsPDF({ orientation, unit: "mm", format: "a4" });
+  // When appending to an existing doc, add a new page — unless this is the first item
+  // (the doc was just created with page 1 already)
+  if (existingDoc && !isFirstItem) doc.addPage("a4", orientation);
 
   // ═══════════════════════════════════════════════════════════════════════════
   // PAGE 1 — Large front view (optional)
   // ═══════════════════════════════════════════════════════════════════════════
   if (hasHero && heroFrontView) {
-    addPageHeader(doc, W, PAD, orderRef, 1, TOTAL_PAGES, "DESIGN — FRONT VIEW", dateStr);
+    addPageHeader(doc, W, PAD, orderRef, pageOffset + 1, TOTAL_PAGES, "DESIGN — FRONT VIEW", dateStr);
     const contentTop = HBAR + 8;
     const heroMaxW = W - PAD * 2;
     const heroMaxH = H - contentTop - PAD;
@@ -812,7 +828,7 @@ export async function exportSpecSheet(params: ExportSpecSheetParams): Promise<Bl
   // ═══════════════════════════════════════════════════════════════════════════
   // Spec sheet page (page 2 if hero exists, else page 1)
   // ═══════════════════════════════════════════════════════════════════════════
-  const specPageNum = hasHero ? 2 : 1;
+  const specPageNum = pageOffset + (hasHero ? 2 : 1);
   addPageHeader(doc, W, PAD, orderRef, specPageNum, TOTAL_PAGES,
     "SPECIFICATION — ENGRAVING & ORDER DETAIL", dateStr);
 
@@ -1088,6 +1104,7 @@ export async function exportSpecSheet(params: ExportSpecSheetParams): Promise<Bl
   }
 
   // ── Save or return PDF ────────────────────────────────────────────────────
+  if (existingDoc) return; // caller owns the doc — don't save here
   const pieceSlug = (variant ?? "piece").replace(/([A-Z])/g, "-$1").toLowerCase().replace(/^-/, "");
   const sizeSlug  = isRing && ringSize ? `-${ringSize.toLowerCase()}` : "";
   const filename  = `TABI-save-${pieceSlug}${sizeSlug}-${fileDateSlug()}.pdf`;
@@ -1095,4 +1112,66 @@ export async function exportSpecSheet(params: ExportSpecSheetParams): Promise<Bl
     return doc.output("blob");
   }
   doc.save(filename);
+}
+
+// ─── Multi-item export — one PDF with pages for every bag item ────────────────
+
+export interface MultiItemSpecParams {
+  variant:           string | null;
+  finish:            string | null;
+  gemstoneLabel:     string | null;
+  ringSize:          string | null;
+  engravingText:     string;
+  engravingOffsetX:  number;
+  engravingOffsetY:  number;
+  engravingFontSize: number;
+  engravingRotation: number;
+  engravingSpacing?: number;
+  engravingRightText?:     string;
+  engravingRightOffsetX?:  number;
+  engravingRightOffsetY?:  number;
+  engravingRightFontSize?: number;
+  engravingRightRotation?: number;
+  engravingRightSpacing?:  number;
+  gemPosition?:      { x: number; y: number };
+  gemPositionLeft?:  { x: number; y: number };
+  gemPositionRight?: { x: number; y: number };
+  heroFrontView:     string | null;
+  renderViews:       { front: string; left: string; right: string } | null;
+  bumpCanvas:        HTMLCanvasElement | null;
+  bumpCanvasRight?:  HTMLCanvasElement | null;
+  canvasTarget:      string;
+  shareUrl?:         string;
+}
+
+export async function exportMultiItemSpecSheet(items: MultiItemSpecParams[]): Promise<Blob | null> {
+  if (items.length === 0) return null;
+  await loadFont();
+
+  // Count total pages across all items
+  let totalPages = 0;
+  for (const item of items) {
+    totalPages += item.heroFrontView ? 2 : 1;
+  }
+
+  // Use the orientation of the first item to initialise the doc
+  const firstIsEarring = items[0].variant === "earrings";
+  const firstOrientation = firstIsEarring ? "portrait" : "landscape";
+  const doc = new jsPDF({ orientation: firstOrientation, unit: "mm", format: "a4" });
+
+  let pageOffset = 0;
+  for (let i = 0; i < items.length; i++) {
+    const item = items[i];
+    await exportSpecSheet({
+      ...item,
+      returnBlob:   false,
+      _doc:         doc,
+      _pageOffset:  pageOffset,
+      _totalPages:  totalPages,
+      _isFirstItem: i === 0,
+    });
+    pageOffset += item.heroFrontView ? 2 : 1;
+  }
+
+  return doc.output("blob");
 }

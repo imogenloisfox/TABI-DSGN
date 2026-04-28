@@ -423,7 +423,7 @@ export default function CustomiserExperience({
   ]);
 
   // "Buy" = add current design to the bag in App. No checkout happens here.
-  const handleAddToBag = useCallback(() => {
+  const handleAddToBag = useCallback(async () => {
     if (!state.variant || !onAddToBag) return;
     const VARIANT_LABEL: Record<string, string> = {
       ringClassic:      "moi ring",
@@ -435,14 +435,24 @@ export default function CustomiserExperience({
       pendantMesmo:     "mesmo pendant",
       earrings:         "earrings",
     };
+    // Capture renders at add-to-bag time so the spec sheet has them at checkout
+    let renders: { heroFrontView: string | null; renderViews: { front: string; left: string; right: string } | null } | undefined;
+    if (captureHandleRef.current) {
+      try {
+        const heroFrontView = await captureHandleRef.current.captureHeroFront();
+        const renderViews   = await captureHandleRef.current.captureAngles();
+        renders = { heroFrontView, renderViews };
+      } catch { /* non-fatal — spec sheet works without renders */ }
+    }
     onAddToBag({
       id:       typeof crypto !== "undefined" ? crypto.randomUUID() : String(Date.now()),
       state:    { ...state },
       shareUrl,
       label:    VARIANT_LABEL[state.variant] ?? state.variant,
       price:    PRODUCT_PRICE_GBP[state.variant],
+      renders,
     });
-  }, [state, shareUrl, onAddToBag]);
+  }, [state, shareUrl, onAddToBag, captureHandleRef]);
 
   // Register stable wrappers with App so header save/reset buttons can call them.
   // Refs always point to the latest version — safe with a mount-only effect.
