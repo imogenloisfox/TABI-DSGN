@@ -6,8 +6,8 @@ import type { ProductVariant } from "@/lib/customiser/types";
 export const PRODUCT_PRICE_GBP: Record<ProductVariant, number> = {
   ringClassic:      230, // MOI
   ringConcave:      240, // SUI
-  ringClassicNoGem: 160, // MEUS
-  ringConcaveNoGem: 165, // EGO (no gem)
+  ringClassicNoGem: 170, // MEUS
+  ringConcaveNoGem: 185, // EGO (no gem)
   pendantOne:       165, // SOI
   pendantTwo:       165, // MOMENT
   pendantMesmo:     165, // MESMO
