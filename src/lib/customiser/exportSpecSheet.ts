@@ -702,6 +702,60 @@ function imageDimensions(dataURL: string): Promise<{ w: number; h: number }> {
   });
 }
 
+// ─── Helper — trim near-white whitespace from a dataURL ──────────────────────
+
+function trimWhitespace(dataURL: string, threshold = 240): Promise<string> {
+  return new Promise((resolve) => {
+    const img = new Image();
+    img.onload = () => {
+      const w = img.naturalWidth;
+      const h = img.naturalHeight;
+      const tmp = document.createElement("canvas");
+      tmp.width  = w;
+      tmp.height = h;
+      const ctx = tmp.getContext("2d")!;
+      ctx.drawImage(img, 0, 0);
+      const data = ctx.getImageData(0, 0, w, h).data;
+
+      let minX = w, maxX = 0, minY = h, maxY = 0;
+      for (let y = 0; y < h; y++) {
+        for (let x = 0; x < w; x++) {
+          const i = (y * w + x) * 4;
+          const r = data[i]!, g = data[i + 1]!, b = data[i + 2]!;
+          if (r < threshold || g < threshold || b < threshold) {
+            if (x < minX) minX = x;
+            if (x > maxX) maxX = x;
+            if (y < minY) minY = y;
+            if (y > maxY) maxY = y;
+          }
+        }
+      }
+
+      if (minX > maxX || minY > maxY) { resolve(dataURL); return; }
+
+      // Add a small pad around the content
+      const PAD_PX = Math.round(w * 0.03);
+      minX = Math.max(0, minX - PAD_PX);
+      minY = Math.max(0, minY - PAD_PX);
+      maxX = Math.min(w - 1, maxX + PAD_PX);
+      maxY = Math.min(h - 1, maxY + PAD_PX);
+
+      const cw = maxX - minX + 1;
+      const ch = maxY - minY + 1;
+      const out = document.createElement("canvas");
+      out.width  = cw;
+      out.height = ch;
+      const octx = out.getContext("2d")!;
+      octx.fillStyle = "#ffffff";
+      octx.fillRect(0, 0, cw, ch);
+      octx.drawImage(img, minX, minY, cw, ch, 0, 0, cw, ch);
+      resolve(out.toDataURL("image/jpeg", 0.92));
+    };
+    img.onerror = () => resolve(dataURL);
+    img.src = dataURL;
+  });
+}
+
 // ─── Main export function ─────────────────────────────────────────────────────
 
 export async function exportSpecSheet(params: ExportSpecSheetParams): Promise<Blob | void> {
@@ -768,12 +822,13 @@ export async function exportSpecSheet(params: ExportSpecSheetParams): Promise<Bl
   if (hasHero && heroFrontView) {
     addPageHeader(doc, W, PAD, orderRef, pageOffset + 1, TOTAL_PAGES, "DESIGN — FRONT VIEW", dateStr);
     const contentTop = HBAR + 4;
-    const heroPad   = isEarring ? 4 : PAD;
-    const heroMaxW  = W - heroPad * 2;
-    const heroMaxH  = H - contentTop - heroPad;
-    const heroDims  = await imageDimensions(heroFrontView);
+    const heroPad    = isEarring ? 4 : PAD;
+    const heroMaxW   = W - heroPad * 2;
+    const heroMaxH   = H - contentTop - heroPad;
+    const heroSrc    = isEarring ? await trimWhitespace(heroFrontView) : heroFrontView;
+    const heroDims   = await imageDimensions(heroSrc);
     addImageFitted(
-      doc, heroFrontView,
+      doc, heroSrc,
       heroDims.w, heroDims.h,
       heroPad, contentTop, heroMaxW, heroMaxH,
     );
