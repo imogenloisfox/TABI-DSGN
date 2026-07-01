@@ -767,14 +767,15 @@ export async function exportSpecSheet(params: ExportSpecSheetParams): Promise<Bl
   // ═══════════════════════════════════════════════════════════════════════════
   if (hasHero && heroFrontView) {
     addPageHeader(doc, W, PAD, orderRef, pageOffset + 1, TOTAL_PAGES, "DESIGN — FRONT VIEW", dateStr);
-    const contentTop = HBAR + 8;
-    const heroMaxW = W - PAD * 2;
-    const heroMaxH = H - contentTop - PAD;
-    const heroDims = await imageDimensions(heroFrontView);
+    const contentTop = HBAR + 4;
+    const heroPad   = isEarring ? 4 : PAD;
+    const heroMaxW  = W - heroPad * 2;
+    const heroMaxH  = H - contentTop - heroPad;
+    const heroDims  = await imageDimensions(heroFrontView);
     addImageFitted(
       doc, heroFrontView,
       heroDims.w, heroDims.h,
-      PAD, contentTop, heroMaxW, heroMaxH,
+      heroPad, contentTop, heroMaxW, heroMaxH,
     );
     doc.addPage("a4", orientation);
   }
