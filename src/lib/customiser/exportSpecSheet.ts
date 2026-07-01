@@ -832,16 +832,14 @@ export async function exportSpecSheet(params: ExportSpecSheetParams): Promise<Bl
   addPageHeader(doc, W, PAD, orderRef, specPageNum, TOTAL_PAGES,
     "SPECIFICATION — ENGRAVING & ORDER DETAIL", dateStr);
 
-  const LEFT_COL_W  = orientation === "landscape" ? 182 : W - PAD * 2;
-  const RIGHT_COL_X = orientation === "landscape" ? PAD + LEFT_COL_W + 5 : PAD;
-  const RIGHT_COL_W = orientation === "landscape" ? W - RIGHT_COL_X - PAD : W - PAD * 2;
+  const LEFT_COL_W  = orientation === "landscape" ? 182 : 118;
+  const RIGHT_COL_X = orientation === "landscape" ? PAD + LEFT_COL_W + 5 : PAD + LEFT_COL_W + 5;
+  const RIGHT_COL_W = orientation === "landscape" ? W - RIGHT_COL_X - PAD : W - RIGHT_COL_X - PAD;
 
-  // Vertical divider (landscape only)
-  if (orientation === "landscape") {
-    doc.setDrawColor(217, 217, 218);
-    doc.setLineWidth(0.1);
-    doc.line(PAD + LEFT_COL_W + 2, CONTENT_Y, PAD + LEFT_COL_W + 2, H - PAD);
-  }
+  // Vertical divider
+  doc.setDrawColor(217, 217, 218);
+  doc.setLineWidth(0.1);
+  doc.line(PAD + LEFT_COL_W + 2, CONTENT_Y, PAD + LEFT_COL_W + 2, H - PAD);
 
   // ── Three camera captures ─────────────────────────────────────────────────
   let captureY = CONTENT_Y;
@@ -1039,12 +1037,22 @@ export async function exportSpecSheet(params: ExportSpecSheetParams): Promise<Bl
   sDivider();
 
   sLabel("Engraving Parameters");
+  const leftPrefix = isEarring ? "Left — " : "";
   sValue(
-    `Size ${engravingFontSize.toFixed(2)}  ·  Pos X ${engravingOffsetX.toFixed(2)}` +
+    `${leftPrefix}Size ${engravingFontSize.toFixed(2)}  ·  Pos X ${engravingOffsetX.toFixed(2)}` +
     `  ·  Pos Y ${engravingOffsetY.toFixed(2)}` +
     (engravingSpacing !== undefined ? `  ·  Spacing ${engravingSpacing.toFixed(2)}` : "") +
     `  ·  Rotation ${engravingRotation}°`
   );
+  if (isEarring && engravingRightText !== undefined) {
+    sValue(
+      `Right — Size ${(engravingRightFontSize ?? engravingFontSize).toFixed(2)}` +
+      `  ·  Pos X ${(engravingRightOffsetX ?? 0).toFixed(2)}` +
+      `  ·  Pos Y ${(engravingRightOffsetY ?? 0).toFixed(2)}` +
+      (engravingRightSpacing !== undefined ? `  ·  Spacing ${engravingRightSpacing.toFixed(2)}` : "") +
+      `  ·  Rotation ${engravingRightRotation ?? engravingRotation}°`
+    );
+  }
   sDivider();
 
   sLabel("Canvas Resolution");
