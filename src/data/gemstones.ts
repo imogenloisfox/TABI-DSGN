@@ -18,6 +18,7 @@ export const GEMSTONES: GemstoneOption[] = [
   { id: "peridot",          label: "peridot",          hex: "#d0e76e", shopifyValue: "Peridot" },
   { id: "green-quartz",     label: "green quartz",     hex: "#ecefe8", shopifyValue: "Green Quartz" },
   { id: "smoky-quartz",     label: "smoky quartz",     hex: "#7d6b5c", shopifyValue: "Smoky Quartz" },
+  { id: "iolite",           label: "iolite",           hex: "#2e2a72", shopifyValue: "Iolite" },
 ];
 
 export function getGemstone(id: GemstoneId): GemstoneOption | undefined {

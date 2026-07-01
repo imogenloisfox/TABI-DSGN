@@ -60,7 +60,8 @@ export type GemstoneId =
   | "green-quartz"
   | "amethyst"
   | "pink-tourmaline"
-  | "hessonite";
+  | "hessonite"
+  | "iolite";
 
 export type FinishType = "shiny" | "matte";
 
