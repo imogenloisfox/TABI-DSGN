@@ -140,49 +140,49 @@ export const ENGRAVING_SLIDER_CONFIG: Record<ProductVariant, EngravingSliderConf
   ringClassic: {
     posX:    { min: -0.4, max: 0.4, default: 0.04 }, // 55% of range
     posY:    { min: -0.4, max: 0.4, default: 0.0  }, // 50%
-    size:    { min: 0.2,  max: 1.8, default: 0.7  }, // 31% (same start, more headroom)
+    size:    { min: 0.2,  max: 1.2, default: 0.7  }, // 50%
     spacing: { min: 0.1,  max: 0.7, default: 0.6  },
   },
   ringConcave: {
     posX:    { min: -0.4, max: 0.4, default: 0.04 }, // 55%
     posY:    { min: -0.4, max: 0.4, default: 0.0  }, // 50%
-    size:    { min: 0.2,  max: 1.8, default: 0.7  }, // 31%
+    size:    { min: 0.2,  max: 1.2, default: 0.7  }, // 50%
     spacing: { min: 0.1,  max: 0.7, default: 0.6  },
   },
   pendantOne: {
     posX:    { min: -0.4, max: 0.4, default: 0.08 }, // 60%
     posY:    { min: -0.4, max: 0.4, default: 0.0  }, // 50%
-    size:    { min: 0.2,  max: 1.4, default: 0.56 }, // 30%
+    size:    { min: 0.2,  max: 0.92, default: 0.56 }, // 50%
     spacing: { min: 0.3,  max: 0.7, default: 0.6  },
   },
   pendantTwo: {
     posX:    { min: -0.4, max: 0.4, default: 0.08 }, // 60%
     posY:    { min: -0.4, max: 0.4, default: 0.0  }, // 50%
-    size:    { min: 0.2,  max: 1.4, default: 0.56 }, // 30%
+    size:    { min: 0.2,  max: 0.92, default: 0.56 }, // 50%
     spacing: { min: 0.3,  max: 0.7, default: 0.6  },
   },
   ringClassicNoGem: {
     posX:    { min: -0.4, max: 0.4, default: 0.04 },
     posY:    { min: -0.4, max: 0.4, default: 0.0  },
-    size:    { min: 0.2,  max: 1.8, default: 0.7  },
+    size:    { min: 0.2,  max: 1.2, default: 0.7  },
     spacing: { min: 0.1,  max: 0.7, default: 0.6  },
   },
   ringConcaveNoGem: {
     posX:    { min: -0.4, max: 0.4, default: 0.04 },
     posY:    { min: -0.4, max: 0.4, default: 0.0  },
-    size:    { min: 0.2,  max: 1.8, default: 0.7  },
+    size:    { min: 0.2,  max: 1.2, default: 0.7  },
     spacing: { min: 0.1,  max: 0.7, default: 0.6  },
   },
   pendantMesmo: {
     posX:    { min: -0.4, max: 0.4, default: 0.08 },
     posY:    { min: -0.4, max: 0.4, default: 0.0  },
-    size:    { min: 0.2,  max: 1.4, default: 0.56 },
+    size:    { min: 0.2,  max: 0.92, default: 0.56 },
     spacing: { min: 0.3,  max: 0.7, default: 0.6  },
   },
   earrings: {
     posX:    { min: -0.3, max: 0.3, default: 0.0 },
     posY:    { min: -0.4, max: 0.2, default: 0.0 },
-    size:    { min: 0.1,  max: 0.6, default: 0.25 },
+    size:    { min: 0.1,  max: 0.9, default: 0.25 },
     spacing: null,
   },
 };
